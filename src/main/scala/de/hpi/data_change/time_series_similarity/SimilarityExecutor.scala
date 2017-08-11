@@ -1,31 +1,18 @@
-package main
+package de.hpi.data_change.time_series_similarity
 
 import java.sql.Timestamp
 import java.time.LocalDateTime
 
+import de.hpi.data_change.time_series_similarity.Main.{granularity, groupingKey, spark}
 import org.apache.spark.sql._
 
 import scala.collection.Map
 
-object Main extends App{
+case class SimilarityExecutor(minNumNonZeroYValues: Int, granularity: TimeGranularity.Value, groupingKey: GroupingKey.Value, spark: SparkSession, filePath: String) {
 
-  //constants for execution:
-  val minNumNonZeroYValues = 3
-  val granularity = TimeGranularity.Monthly
-  val groupingKey = GroupingKey.Entity
-
-  var sparkBuilder = SparkSession
-    .builder()
-    .appName("Spark SQL basic example")
-  if(args.length==1 && args(0) == "local" ){
-    sparkBuilder = sparkBuilder.master("local[1]")
-  }
-  val spark = sparkBuilder.getOrCreate()
   import spark.implicits._
   implicit def changeRecordEncoder: Encoder[ChangeRecord] = org.apache.spark.sql.Encoders.kryo[ChangeRecord]
   implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
-
-  executeCode()
 
   def aggregateToTimeSeries(resAsCR: Dataset[ChangeRecord], groupingObject: TimeGranularityGrouping): Dataset[MultiDimensionalTimeSeries] = {
     groupingKey match {
@@ -37,7 +24,7 @@ object Main extends App{
   }
 
   def executeCode(): Unit = {
-    val rawData = spark.read.csv("C:\\Users\\Leon.Bornemann\\Documents\\Database Changes\\wikidata\\settlements\\small.csv")
+    val rawData = spark.read.csv(filePath)
     val resAsCR = rawData.map( new ChangeRecord(_))
     val distinctYears = resAsCR.map(cr => cr.timestamp.getYear).distinct().collect().toList //TODO: if we aggregate daily, we will maybe get some zeros padded to all timeseries
     val groupingObject = new TimeGranularityGrouping(distinctYears.min,distinctYears.max)
@@ -79,4 +66,5 @@ object Main extends App{
     //var joinResult = timeSeriesDataset.joinWith(toJoinWith, trivialCondition, "cross").filter((t) => t._1.name < t._2.name)
     joinResult
   }
+
 }

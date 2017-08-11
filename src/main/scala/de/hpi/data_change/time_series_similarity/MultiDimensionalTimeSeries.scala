@@ -1,4 +1,4 @@
-package main
+package de.hpi.data_change.time_series_similarity
 
 import java.sql.Timestamp
 import scala.collection.Map

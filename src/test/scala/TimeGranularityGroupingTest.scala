@@ -1,6 +1,7 @@
 import java.time.LocalDateTime
 
-import main.{ChangeRecord, TimeGranularityGrouping}
+import de.hpi.data_change.time_series_similarity.TimeGranularityGrouping
+import de.hpi.data_change.time_series_similarity.ChangeRecord
 import org.scalatest._
 
 class TimeGranularityGroupingTest extends FlatSpec {

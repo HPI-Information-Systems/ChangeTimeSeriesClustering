@@ -1,4 +1,4 @@
-package main
+package de.hpi.data_change.time_series_similarity
 
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneOffset}
@@ -12,7 +12,7 @@ class TimeGranularityGrouping(minYear:Int,maxYear:Int) extends Serializable{
       case TimeGranularity.Yearly => toSingleDimensionalYearlyTimeSeries(entity,changeRecords)
       case TimeGranularity.Monthly => toSingleDimensionalMonthlyTimeSeries(entity,changeRecords)
       case TimeGranularity.Daily => toSingleDimensionalDailyTimeSeries(entity,changeRecords)
-      case _ => throw new AssertionError("unknown time Granularity specified")
+      case _ => println("received: " + granularity);throw new AssertionError("unknown time Granularity specified: " + granularity)
     }
   }
 

@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>de.hpi.templates</groupId>
-  <artifactId>SimpleScalaSparkTemplate2</artifactId>
+  <groupId>de.hpi.data_change</groupId>
+  <artifactId>ChangeTimeSeriesSimilarity</artifactId>
   <version>1.0-SNAPSHOT</version>
   <name>${project.artifactId}</name>
   <description>My wonderfull scala app</description>
@@ -129,7 +129,7 @@
             <manifest>
               <addClasspath>true</addClasspath>
               <classpathPrefix>lib/</classpathPrefix>
-              <mainClass>de.hpi.templates.TestNumbers</mainClass>
+              <mainClass>de.hpi.data_change.time_series_similarity.Main</mainClass>
             </manifest>
           </archive>
         </configuration>
@@ -149,7 +149,7 @@
               <archive>
                 <manifest>
                   <addClasspath>true</addClasspath>
-                  <mainClass>de.hpi.templates.TestNumbers</mainClass>
+                  <mainClass>de.hpi.data_change.time_series_similarity.Main</mainClass>
                 </manifest>
               </archive>
               <descriptorRefs>
