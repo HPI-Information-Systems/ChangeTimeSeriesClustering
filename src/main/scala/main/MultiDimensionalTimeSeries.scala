@@ -5,16 +5,16 @@ import scala.collection.Map
 
 case class MultiDimensionalTimeSeries(name:String, data:Map[String,Seq[Double]], timeAxis:Seq[Timestamp]) {
 
-  val timeSeries = Array.ofDim[Double](data.keys.size,timeAxis.size)
+  val timeSeries: Array[Array[Double]] = Array.ofDim[Double](data.keys.size,timeAxis.size)
   val dimNames = data.keys.toList.sorted
   //TODO: assert that time series is sorted
   dimNames.foreach(k => putData(k,data(k)))
-  val numNonZeroYValues = timeSeries.flatten.filter( d => d != 0).length
+  val numNonZeroYValues: Int = timeSeries.flatten.count(d => d != 0)
 
-  def putData(k: String, values: Seq[Double]) = {
+  def putData(k: String, values: Seq[Double]): Unit = {
     assert(values.size==timeAxis.size)
     if(values.size!=timeAxis.size){
-      throw new IllegalArgumentException("number of values does not match number of timestamps for key " + k);
+      throw new IllegalArgumentException("number of values does not match number of timestamps for key " + k)
     }
     timeSeries(dimNames.indexOf(k)) = values.toArray
   }
@@ -32,12 +32,12 @@ case class MultiDimensionalTimeSeries(name:String, data:Map[String,Seq[Double]],
     for( i <- 0 until dims()._1; j <- 0 until dims()._2){
       dist += Math.abs(other.get(i,j) - get(i,j))
     }
-    return dist;
+    dist
   }
 
   def dims() = (dimNames.size,timeAxis.size)
 
-  override def toString(): String = {
-    return name + "(numDimensions: " + dimNames.size + ", numTimePoints: " + timeSeries.length + ")";
+  override def toString: String = {
+    name + "(numDimensions: " + dimNames.size + ", numTimePoints: " + timeSeries.length + ")"
   }
 }

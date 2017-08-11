@@ -24,9 +24,9 @@ class TimeGranularityGrouping(minYear:Int,maxYear:Int) extends Serializable{
       .filter(year => !asMap.contains(toStandardDateInYear(year)))
         .foreach(year => asTupleList.append((toStandardDateInYear(year),0)))
     val sorted = asTupleList.toList.sortBy ( x => x._1.toEpochSecond(ZoneOffset.UTC))
-    var finalMap = Map(("num Changes",sorted.map( t => t._2))).mapValues(l => l.map(i => i.toDouble))
-    val timestamps = sorted.map(t => Timestamp.from(t._1.toInstant(ZoneOffset.UTC))).toSeq
-    return new MultiDimensionalTimeSeries(label,finalMap,timestamps)
+    val finalMap = Map(("num Changes",sorted.map( t => t._2))).mapValues(l => l.map(i => i.toDouble))
+    val timestamps = sorted.map(t => Timestamp.from(t._1.toInstant(ZoneOffset.UTC)))
+    MultiDimensionalTimeSeries(label,finalMap,timestamps)
   }
 
   def toSingleDimensionalMonthlyTimeSeries(label: String, changeRecords: Iterator[ChangeRecord]): MultiDimensionalTimeSeries = {
@@ -37,9 +37,9 @@ class TimeGranularityGrouping(minYear:Int,maxYear:Int) extends Serializable{
         .filter { case (year,month) => !asMap.contains(toStandardDateInMonth(year,month))}
         .foreach{ case (year,month) => asTupleList.append((toStandardDateInMonth(year,month),0))}
     val sorted = asTupleList.toList.sortBy ( x => x._1.toEpochSecond(ZoneOffset.UTC))
-    var finalMap = Map(("num Changes",sorted.map( t => t._2))).mapValues(l => l.map(i => i.toDouble))
-    val timestamps = sorted.map(t => Timestamp.from(t._1.toInstant(ZoneOffset.UTC))).toSeq
-    return new MultiDimensionalTimeSeries(label,finalMap,timestamps)
+    val finalMap = Map(("num Changes",sorted.map( t => t._2))).mapValues(l => l.map(i => i.toDouble))
+    val timestamps = sorted.map(t => Timestamp.from(t._1.toInstant(ZoneOffset.UTC)))
+    MultiDimensionalTimeSeries(label,finalMap,timestamps)
   }
 
   def getAllDays(year: Int): TraversableOnce[LocalDateTime] = {
@@ -51,7 +51,7 @@ class TimeGranularityGrouping(minYear:Int,maxYear:Int) extends Serializable{
       days.append(curDay)
       curDay = curDay.plusDays(1)
     }
-    return days
+    days
   }
 
   def toSingleDimensionalDailyTimeSeries(label: String, changeRecords: Iterator[ChangeRecord]): MultiDimensionalTimeSeries = {
@@ -62,9 +62,9 @@ class TimeGranularityGrouping(minYear:Int,maxYear:Int) extends Serializable{
       .filter( date => !asMap.contains(date))
       .foreach(date => asTupleList.append( (date,0)))
     val sorted = asTupleList.toList.sortBy ( x => x._1.toEpochSecond(ZoneOffset.UTC))
-    var finalMap = Map(("num Changes",sorted.map( t => t._2))).mapValues(l => l.map(i => i.toDouble))
-    val timestamps = sorted.map(t => Timestamp.from(t._1.toInstant(ZoneOffset.UTC))).toSeq
-    return new MultiDimensionalTimeSeries(label,finalMap,timestamps)
+    val finalMap = Map(("num Changes",sorted.map( t => t._2))).mapValues(l => l.map(i => i.toDouble))
+    val timestamps = sorted.map(t => Timestamp.from(t._1.toInstant(ZoneOffset.UTC)))
+    MultiDimensionalTimeSeries(label,finalMap,timestamps)
   }
 
   def toStandardDateInYear(year: Int):LocalDateTime = {
