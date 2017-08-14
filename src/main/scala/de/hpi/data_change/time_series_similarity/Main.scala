@@ -27,6 +27,6 @@ object Main extends App with Serializable{
   implicit def changeRecordEncoder: Encoder[ChangeRecord] = org.apache.spark.sql.Encoders.kryo[ChangeRecord]
   implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
 
-  new SimilarityExecutor(minNumNonZeroYValues,granularity,groupingKey,spark,args(0)).executeCode()
+  new SimilarityExecutor(minNumNonZeroYValues,granularity,groupingKey,spark,args(0)).calculatePairwiseSimilarity()
 
 }

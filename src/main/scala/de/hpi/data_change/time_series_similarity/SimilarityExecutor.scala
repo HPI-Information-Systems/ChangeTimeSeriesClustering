@@ -23,7 +23,7 @@ case class SimilarityExecutor(minNumNonZeroYValues: Int, granularity: TimeGranul
     }
   }
 
-  def executeCode(): Unit = {
+  def calculatePairwiseSimilarity(): Dataset[(MultiDimensionalTimeSeries,MultiDimensionalTimeSeries,Double)] = {
     val rawData = spark.read.csv(filePath)
     val resAsCR = rawData.map( new ChangeRecord(_))
     val distinctYears = resAsCR.map(cr => cr.timestamp.getYear).distinct().collect().toList //TODO: if we aggregate daily, we will maybe get some zeros padded to all timeseries
@@ -37,11 +37,9 @@ case class SimilarityExecutor(minNumNonZeroYValues: Int, granularity: TimeGranul
     println("num cols before Dist: " +joinResult.columns.length)
     val distances = joinResult.map(t => (t._1,t._2,t._1.manhattenDistance(t._2))) //t._1.manhattenDistance(t._2)
     println("num cols: " +distances.columns.length)
-
-
-    //This is actually the real program:
     val sorted = distances.sort(distances.col(distances.columns(2)))
     sorted.head(100).foreach { case ( e1,e2,dist) => println("Distance between " + e1.name + " and " + e2.name + " is " + dist)}
+    sorted
   }
 
   private def toTimeSeries(groupedByKey: KeyValueGroupedDataset[String, ChangeRecord],groupingObject:TimeGranularityGrouping) = {
