@@ -1,36 +1,23 @@
-package de.hpi.data_change.time_series_similarity
+package de.hpi.data_change.time_series_similarity.data_mining
 
 import java.sql.Timestamp
 import java.time.LocalDateTime
 
-import de.hpi.data_change.time_series_similarity.Main.{granularity, groupingKey, spark}
+import de.hpi.data_change.time_series_similarity.configuration.{GroupingKey, TimeGranularity}
+import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, MultiDimensionalTimeSeries}
 import org.apache.spark.sql._
 
 import scala.collection.Map
 
-case class SimilarityExecutor(minNumNonZeroYValues: Int, granularity: TimeGranularity.Value, groupingKey: GroupingKey.Value, spark: SparkSession, filePath: String) {
+case class PairwiseSimilarityExtractor(minNumNonZeroYValues: Int, granularity: TimeGranularity.Value, groupingKey: GroupingKey.Value, spark: SparkSession, filePath: String) {
 
   import spark.implicits._
   implicit def changeRecordEncoder: Encoder[ChangeRecord] = org.apache.spark.sql.Encoders.kryo[ChangeRecord]
   implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
 
-  def aggregateToTimeSeries(resAsCR: Dataset[ChangeRecord], groupingObject: TimeGranularityGrouping): Dataset[MultiDimensionalTimeSeries] = {
-    groupingKey match {
-      case GroupingKey.Entity => toTimeSeries(resAsCR.groupByKey(cr => cr.entity),groupingObject)
-      case GroupingKey.Property => toTimeSeries(resAsCR.groupByKey(cr => cr.property),groupingObject)
-      case GroupingKey.Value_ => toTimeSeries(resAsCR.groupByKey(cr => cr.value),groupingObject)
-      case _ => throw new AssertionError("unknown grouping key")
-    }
-  }
-
   def calculatePairwiseSimilarity(): Dataset[(MultiDimensionalTimeSeries,MultiDimensionalTimeSeries,Double)] = {
-    val rawData = spark.read.csv(filePath)
-    val resAsCR = rawData.map( new ChangeRecord(_))
-    val distinctYears = resAsCR.map(cr => cr.timestamp.getYear).distinct().collect().toList //TODO: if we aggregate daily, we will maybe get some zeros padded to all timeseries
-    val groupingObject = new TimeGranularityGrouping(distinctYears.min,distinctYears.max)
-    //accumulation to multidimensional time series:
-    println("num Distinct years: " + distinctYears.size)
-    val timeSeriesDataset: Dataset[MultiDimensionalTimeSeries] = aggregateToTimeSeries(resAsCR,groupingObject)
+    val aggregator = new TimeSeriesAggregator(spark,minNumNonZeroYValues,granularity,groupingKey)
+    val timeSeriesDataset: Dataset[MultiDimensionalTimeSeries] = aggregator.aggregateToTimeSeries(filePath)
     //create cartesian product:
     println("total elements to process: " +timeSeriesDataset.count())
     val joinResult = getUnorderedPairs(timeSeriesDataset)
@@ -40,11 +27,6 @@ case class SimilarityExecutor(minNumNonZeroYValues: Int, granularity: TimeGranul
     val sorted = distances.sort(distances.col(distances.columns(2)))
     sorted.head(100).foreach { case ( e1,e2,dist) => println("Distance between " + e1.name + " and " + e2.name + " is " + dist)}
     sorted
-  }
-
-  private def toTimeSeries(groupedByKey: KeyValueGroupedDataset[String, ChangeRecord],groupingObject:TimeGranularityGrouping) = {
-    groupedByKey.mapGroups((entity, changeRecords) => groupingObject.toSingleDimensionalTimeSeries(entity, changeRecords, granularity))
-      .filter(ts => ts.numNonZeroYValues >= minNumNonZeroYValues)
   }
 
   def toTimeSeriesTuple(r: Row): (MultiDimensionalTimeSeries,MultiDimensionalTimeSeries) = {

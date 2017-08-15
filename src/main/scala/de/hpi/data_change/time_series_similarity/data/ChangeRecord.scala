@@ -1,4 +1,4 @@
-package de.hpi.data_change.time_series_similarity
+package de.hpi.data_change.time_series_similarity.data
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter

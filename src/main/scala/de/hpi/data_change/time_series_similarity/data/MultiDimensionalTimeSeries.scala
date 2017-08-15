@@ -1,9 +1,13 @@
-package de.hpi.data_change.time_series_similarity
+package de.hpi.data_change.time_series_similarity.data
 
 import java.sql.Timestamp
+
 import scala.collection.Map
 
 case class MultiDimensionalTimeSeries(name:String, data:Map[String,Seq[Double]], timeAxis:Seq[Timestamp]) {
+
+  //TODO: account for multidimensionality...
+  def getClusteringFeatures() = getDim(0)
 
   val timeSeries: Array[Array[Double]] = Array.ofDim[Double](data.keys.size,timeAxis.size)
   val dimNames = data.keys.toList.sorted
@@ -24,6 +28,8 @@ case class MultiDimensionalTimeSeries(name:String, data:Map[String,Seq[Double]],
   def get(dim:Int,col:Int) = timeSeries(dim)(col)
 
   def getDim(dim:String) = timeSeries(dimNames.indexOf(dim))
+
+  def getDim(dim:Int) = timeSeries(dim)
 
   def manhattenDistance(other:MultiDimensionalTimeSeries):Double = {
     assert(dims()==other.dims())

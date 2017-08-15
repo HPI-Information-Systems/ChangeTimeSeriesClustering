@@ -1,10 +1,9 @@
 import java.time.LocalDateTime
 
-import de.hpi.data_change.time_series_similarity.TimeGranularityGrouping
-import de.hpi.data_change.time_series_similarity.ChangeRecord
+import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, TimeGranularityGrouper}
 import org.scalatest._
 
-class TimeGranularityGroupingTest extends FlatSpec {
+class TimeGranularityGrouperTest extends FlatSpec {
 
   "Daily Aggregation" should "correctly aggregate by day of year" in {
     val timestamp1 = LocalDateTime.of(2000,10,10,12,0)
@@ -16,7 +15,7 @@ class TimeGranularityGroupingTest extends FlatSpec {
       new ChangeRecord("a","some-prop3","some-value",timestamp3),
       new ChangeRecord("a","some-prop4","some-value",timestamp4)
     )
-    val groupingObject = new TimeGranularityGrouping(2000,2001)
+    val groupingObject = new TimeGranularityGrouper(2000,2001)
     val ts = groupingObject.toSingleDimensionalDailyTimeSeries("a",records.iterator)
     assert(ts.numNonZeroYValues == 3)
     val yValues = ts.getDim(ts.dimNames(0) )
@@ -44,7 +43,7 @@ class TimeGranularityGroupingTest extends FlatSpec {
       new ChangeRecord("a","some-prop4","some-value",timestamp4),
       new ChangeRecord("a","some-prop5","some-value",timestamp5)
     )
-    val groupingObject = new TimeGranularityGrouping(2000,2001)
+    val groupingObject = new TimeGranularityGrouper(2000,2001)
     val ts = groupingObject.toSingleDimensionalMonthlyTimeSeries("a",records.iterator)
     assert( 3 == ts.numNonZeroYValues)
     val yValues = ts.getDim(ts.dimNames(0) )
@@ -71,7 +70,7 @@ class TimeGranularityGroupingTest extends FlatSpec {
       new ChangeRecord("a","some-prop4","some-value",timestamp4),
       new ChangeRecord("a","some-prop5","some-value",timestamp5)
     )
-    val groupingObject = new TimeGranularityGrouping(2000,2002)
+    val groupingObject = new TimeGranularityGrouper(2000,2002)
     val ts = groupingObject.toSingleDimensionalYearlyTimeSeries("a",records.iterator)
     assert( 3 == ts.numNonZeroYValues)
     val yValues = ts.getDim(ts.dimNames(0) )

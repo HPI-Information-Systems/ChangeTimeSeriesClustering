@@ -1,23 +1,25 @@
-package de.hpi.data_change.time_series_similarity
+package de.hpi.data_change.time_series_similarity.data
 
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneOffset}
 
+import de.hpi.data_change.time_series_similarity.configuration.TimeGranularity
+
 import scala.collection.mutable.ListBuffer
 
-class TimeGranularityGrouping(minYear:Int,maxYear:Int) extends Serializable{
+class TimeGranularityGrouper(minYear:Int, maxYear:Int) extends Serializable{
 
-  def toSingleDimensionalTimeSeries(entity: String, changeRecords: Iterator[ChangeRecord], granularity:TimeGranularity.Value ):MultiDimensionalTimeSeries = {
+  def toSingleDimensionalTimeSeries(key: String, changeRecords: Iterator[ChangeRecord], granularity:TimeGranularity.Value ):MultiDimensionalTimeSeries = {
     granularity match {
-      case TimeGranularity.Yearly => toSingleDimensionalYearlyTimeSeries(entity,changeRecords)
-      case TimeGranularity.Monthly => toSingleDimensionalMonthlyTimeSeries(entity,changeRecords)
-      case TimeGranularity.Daily => toSingleDimensionalDailyTimeSeries(entity,changeRecords)
+      case TimeGranularity.Yearly => toSingleDimensionalYearlyTimeSeries(key,changeRecords)
+      case TimeGranularity.Monthly => toSingleDimensionalMonthlyTimeSeries(key,changeRecords)
+      case TimeGranularity.Daily => toSingleDimensionalDailyTimeSeries(key,changeRecords)
       case _ => println("received: " + granularity);throw new AssertionError("unknown time Granularity specified: " + granularity)
     }
   }
 
 
-  def toSingleDimensionalYearlyTimeSeries(label: String, changeRecords: Iterator[ChangeRecord]): MultiDimensionalTimeSeries = {
+  def toSingleDimensionalYearlyTimeSeries(key: String, changeRecords: Iterator[ChangeRecord]): MultiDimensionalTimeSeries = {
     val asMap = changeRecords.toList.groupBy( cr => toStandardDateInYear(cr.timestamp.getYear) )
     val asTupleList = asMap.mapValues(crList => crList.size).toList.toBuffer
     (minYear to maxYear).toList
@@ -26,7 +28,7 @@ class TimeGranularityGrouping(minYear:Int,maxYear:Int) extends Serializable{
     val sorted = asTupleList.toList.sortBy ( x => x._1.toEpochSecond(ZoneOffset.UTC))
     val finalMap = Map(("num Changes",sorted.map( t => t._2))).mapValues(l => l.map(i => i.toDouble))
     val timestamps = sorted.map(t => Timestamp.from(t._1.toInstant(ZoneOffset.UTC)))
-    MultiDimensionalTimeSeries(label,finalMap,timestamps)
+    MultiDimensionalTimeSeries(key,finalMap,timestamps)
   }
 
   def toSingleDimensionalMonthlyTimeSeries(label: String, changeRecords: Iterator[ChangeRecord]): MultiDimensionalTimeSeries = {
