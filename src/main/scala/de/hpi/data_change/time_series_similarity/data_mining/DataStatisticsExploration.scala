@@ -16,7 +16,7 @@ case class DataStatisticsExploration(spark: SparkSession, filePath: String) {
     (prop,entries.size,entries.map(cr => cr.entity).toSet.size)
   }
 
-  def propertyStatistics(changeRecords: Dataset[ChangeRecord]) = {
+  def propertyStatistics(changeRecords: Dataset[ChangeRecord],resultDir:String) = {
     //TODO: weird things get plotted
     val results = changeRecords.groupByKey(cr => cr.property)
         .mapGroups((prop,entries) => aggregateResults(prop,entries))
@@ -37,8 +37,8 @@ case class DataStatisticsExploration(spark: SparkSession, filePath: String) {
   def explore(resultDir:String) = {
     val rawData = spark.read.csv(filePath)
     val changeRecords = rawData.map( new ChangeRecord(_))
-    entityStatistics(changeRecords)
-    propertyStatistics(changeRecords)
+    entityStatistics(changeRecords,resultDir)
+    propertyStatistics(changeRecords,resultDir)
 
 //    for(granularity <- TimeGranularity.values;groupingKey <- GroupingKey.values) {
 //      val aggregator = new TimeSeriesAggregator(spark, 0, granularity, groupingKey)
@@ -47,12 +47,15 @@ case class DataStatisticsExploration(spark: SparkSession, filePath: String) {
 //    }
   }
 
-  private def entityStatistics(changeRecords: Dataset[ChangeRecord]) = {
+  private def entityStatistics(changeRecords: Dataset[ChangeRecord],resultDir:String) = {
     val changeCount = changeRecords.groupByKey(cr => cr.entity).mapGroups((e, crIterator) => (e, crIterator.size))
     val histogram = changeCount.groupByKey { case (a, b) => b }
       .mapGroups { case (count, iterator) => (count, iterator.size) }
     //TODO: save results
-    //histogram.write.save(resultDir + "entity_numChange_Histogram")
+    histogram.write.csv(resultDir + "entity_numChange_Histogram")
+  }
+
+  private def plottingExploration(histogram:Dataset[(Int, Int)]): Unit ={
     //plot that thing:
     val results = histogram.collect().sortBy(t => t._1)
     results.foreach(println(_))

@@ -15,17 +15,22 @@ case class PairwiseSimilarityExtractor(minNumNonZeroYValues: Int, granularity: T
   implicit def changeRecordEncoder: Encoder[ChangeRecord] = org.apache.spark.sql.Encoders.kryo[ChangeRecord]
   implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
 
-  def calculatePairwiseSimilarity(): Dataset[(MultiDimensionalTimeSeries,MultiDimensionalTimeSeries,Double)] = {
-    val aggregator = new TimeSeriesAggregator(spark,minNumNonZeroYValues,granularity,groupingKey)
+  def calculatePairwiseSimilarity(resultDir:String): Dataset[(String,String,Double)] = {
+    val aggregator = new TimeSeriesAggregator(spark, minNumNonZeroYValues, granularity, groupingKey)
     val timeSeriesDataset: Dataset[MultiDimensionalTimeSeries] = aggregator.aggregateToTimeSeries(filePath)
     //create cartesian product:
-    println("total elements to process: " +timeSeriesDataset.count())
+    println("total elements to process: " + timeSeriesDataset.count())
     val joinResult = getUnorderedPairs(timeSeriesDataset)
-    println("num cols before Dist: " +joinResult.columns.length)
-    val distances = joinResult.map(t => (t._1,t._2,t._1.manhattenDistance(t._2))) //t._1.manhattenDistance(t._2)
-    println("num cols: " +distances.columns.length)
-    val sorted = distances.sort(distances.col(distances.columns(2)))
-    sorted.head(100).foreach { case ( e1,e2,dist) => println("Distance between " + e1.name + " and " + e2.name + " is " + dist)}
+    println("num cols before Dist: " + joinResult.columns.length)
+    val distances = joinResult.map(t => (t._1, t._2, t._1.manhattenDistance(t._2))) //t._1.manhattenDistance(t._2)
+    println("num cols: " + distances.columns.length)
+    val sorted = distances
+      .map { case (e1, e2, dist) => (e1.name, e2.name, dist) }
+      .sort(distances.col(distances.columns(2)))
+    if (resultDir != null) {
+      sorted.write.csv(resultDir + "GroupBy=" + groupingKey + "_granularity=" + granularity + "_pairwiseDist")
+    }
+    sorted.head(100).foreach { case ( e1,e2,dist) => println("Distance between " + e1 + " and " + e2 + " is " + dist)}
     sorted
   }
 
