@@ -1,6 +1,6 @@
 package de.hpi.data_change.time_series_similarity
 
-import de.hpi.data_change.time_series_similarity.ClusteringMain.{args, configAsXML, resultDirectory}
+import de.hpi.data_change.time_series_similarity.ClusteringMain.{args, resultDirectory}
 import de.hpi.data_change.time_series_similarity.visualization.BarChart
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -17,6 +17,6 @@ object VisualizationMain extends App with Serializable {
     .appName("Spark SQL basic example")
     .master("local[1]")
     .getOrCreate()
-  BasicVisualizer(spark,"C:\\Users\\leon.bornemann\\Desktop\\playground\\settlements_1\\settlementsConfig_1_result").draw()
+  BasicVisualizer(spark,"C:\\Users\\Leon.Bornemann\\Documents\\Database Changes\\Clustering Results\\settlementsConfig_3_result").draw()
 
 }

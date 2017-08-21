@@ -18,19 +18,18 @@ object ClusteringMain extends App with Serializable{
   if(args.length<1){
     throw new AssertionError("No Config file provided - terminating")
   }
-  val configAsXML = XML.loadFile(args(0))
+  val config = new ClusteringConfig(args(0))
   //extract config
-  val sourceFilePath = (configAsXML \ "sourceFilePath").text
-  var resultDirectory = (configAsXML \ "resultDirectory").text
-  val granularity = TimeGranularity.withName((configAsXML \ "TimeGranularity" ).text)
-  val groupingKey = GroupingKey.withName((configAsXML \ "GroupingKey" ).text)
-  val minNumNonZeroYValues = (configAsXML \ "minNumNonZeroYValues" ).text.toInt
-  val clusteringAlgorithmParameters = (configAsXML \ "clusteringAlgorithm" \ "_").map( node => (node.label,node.text))
-  assert(ClusteringAlgorithm.values.map(_.toString).contains((configAsXML \"clusteringAlgorithm" \"name").text))
+  val sourceFilePath = config.sourceFilePath
+  var resultDirectory = config.resultDirectory
+  val granularity = config.granularity
+  val groupingKey = config.groupingKey
+  val minNumNonZeroYValues = config.minNumNonZeroYValues
+  val clusteringAlgorithmParameters = config.clusteringAlgorithmParameters
   if(!resultDirectory.endsWith(File.separator)){
     resultDirectory = resultDirectory + File.separator
   }
-  val configIdentifier = new File(args(0)).getName.split("\\.")(0)
+  val configIdentifier = config.configIdentifier
   //intitialize spark
   var sparkBuilder = SparkSession
     .builder()
@@ -40,15 +39,8 @@ object ClusteringMain extends App with Serializable{
     resultDirectory = null; //we don't save anything in local mode
   } else{
     //serialize config to hadoop
-    System.setProperty("HADOOP_USER_NAME", "leon.bornemann")
-    val configPath = new Path(resultDirectory + configIdentifier + ".xml")
-    val conf = new Configuration()
-    conf.set("fs.defaultFS", "hdfs://mut:8020/") //TODO: make this a parameter?
-    val fs = FileSystem.get(conf)
-    val os = fs.create(configPath)
-    os.write(configAsXML.toString().getBytes())
-    fs.close()
+    config.serializeToHadoop()
   }
   val spark = sparkBuilder.getOrCreate()
-  new TimeSeriesClusterer(spark,sourceFilePath,minNumNonZeroYValues,granularity,groupingKey,configIdentifier).buildClusters(clusteringAlgorithmParameters.toMap,resultDirectory)
+  new TimeSeriesClusterer(spark,sourceFilePath,minNumNonZeroYValues,granularity,groupingKey,configIdentifier).buildClusters(clusteringAlgorithmParameters,resultDirectory)
 }

@@ -1,5 +1,5 @@
 <config>
-    <sourceFilePath>C:\Users\Leon.Bornemann\Documents\Database Changes\Data\wikidata\settlements\small.csv</sourceFilePath>
+    <sourceFilePath>C:\Users\Leon.Bornemann\Documents\Database Changes\Data\wikidata\settlements\small.csv.bz2</sourceFilePath>
     <resultDirectory>/users/leon.bornemann/results/</resultDirectory>
     <TimeGranularity>Monthly</TimeGranularity>
     <GroupingKey>Entity</GroupingKey>
