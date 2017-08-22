@@ -63,7 +63,7 @@ class ClusteringConfig() {
     val configPath = new Path(resultDirectory +configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + configIdentifier + ".xml")
     val os = fs.create(configPath)
     os.write(getAsXML.getBytes())
-    fs.close()
+    //fs.close()
   }
 
 //  val configAsXML = XML.loadFile(filePath)

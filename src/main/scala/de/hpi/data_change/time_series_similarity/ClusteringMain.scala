@@ -1,6 +1,6 @@
 package de.hpi.data_change.time_series_similarity
 
-import java.io.File
+import java.io.{File, FileWriter, PrintWriter}
 import java.sql.Timestamp
 import java.time.LocalDateTime
 
@@ -15,10 +15,24 @@ import scala.xml.XML
 import scala.collection.Map
 
 object ClusteringMain extends App with Serializable{
+
+  private def isLocalMode = {
+    args.length == 2 && args(1) == "-local"
+  }
+
   if(args.length<1){
     throw new AssertionError("No Config file provided - terminating")
   }
+  //intitialize spark
+  var sparkBuilder = SparkSession
+    .builder()
+    .appName("Spark SQL basic example")
+  if (isLocalMode) {
+    sparkBuilder = sparkBuilder.master("local[4]")
+  }
+  val spark = sparkBuilder.getOrCreate()
   for(file <- new File(args(0)).listFiles().filter(f => f.getName.endsWith(".xml"))) {
+    val writer = new PrintWriter(new FileWriter(new File("selfmadelog.txt"),true))
     val config = new ClusteringConfig(file.getAbsolutePath)
     //extract config
     val sourceFilePath = config.sourceFilePath
@@ -31,18 +45,14 @@ object ClusteringMain extends App with Serializable{
       resultDirectory = resultDirectory + File.separator
     }
     val configIdentifier = config.configIdentifier
-    //intitialize spark
-    var sparkBuilder = SparkSession
-      .builder()
-      .appName("Spark SQL basic example")
-    if (args.length == 2 && args(1) == "-local") {
-      sparkBuilder = sparkBuilder.master("local[4]")
-      resultDirectory = null; //we don't save anything in local mode
+    writer.println(LocalDateTime.now() +  ":  starting config " + configIdentifier)
+    writer.close()
+    if (isLocalMode) {
+      resultDirectory = null;
     } else {
       //serialize config to hadoop
       config.serializeToHadoop()
     }
-    val spark = sparkBuilder.getOrCreate()
     new TimeSeriesClusterer(spark, sourceFilePath, minNumNonZeroYValues, granularity, groupingKey, configIdentifier).buildClusters(clusteringAlgorithmParameters, resultDirectory)
   }
 }

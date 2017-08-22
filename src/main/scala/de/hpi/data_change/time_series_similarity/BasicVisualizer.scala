@@ -1,6 +1,5 @@
 package de.hpi.data_change.time_series_similarity
 
-import de.hpi.data_change.time_series_similarity.VisualizationMain.spark
 import de.hpi.data_change.time_series_similarity.visualization.BarChart
 import org.apache.spark.sql.{Row, SparkSession}
 
