@@ -19,5 +19,6 @@ object ExplorationMain extends App with Serializable {
     sparkBuilder = sparkBuilder.master("local[4]")
   }
   val spark = sparkBuilder.getOrCreate()
-  new DataStatisticsExploration(spark,args(0)).explore(args(1))
+  //new DataStatisticsExploration(spark,args(0)).explore(args(1))
+  new DataStatisticsExploration(spark,args(0)).exploreCategoryStatistics()
 }

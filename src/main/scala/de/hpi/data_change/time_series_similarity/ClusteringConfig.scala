@@ -2,7 +2,6 @@ package de.hpi.data_change.time_series_similarity
 
 import java.io.{File, PrintWriter}
 
-import de.hpi.data_change.time_series_similarity.ClusteringMain.{args, resultDirectory}
 import de.hpi.data_change.time_series_similarity.configuration.{ClusteringAlgorithm, GroupingKey, TimeGranularity}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -58,10 +57,10 @@ class ClusteringConfig() {
 
   def serializeToHadoop() = {
     System.setProperty("HADOOP_USER_NAME", "leon.bornemann")
-    val configPath = new Path(resultDirectory + configIdentifier + ".xml")
     val conf = new Configuration()
     conf.set("fs.defaultFS", "hdfs://mut:8020/") //TODO: make this a parameter?
     val fs = FileSystem.get(conf)
+    val configPath = new Path(resultDirectory +configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + configIdentifier + ".xml")
     val os = fs.create(configPath)
     os.write(getAsXML.getBytes())
     fs.close()

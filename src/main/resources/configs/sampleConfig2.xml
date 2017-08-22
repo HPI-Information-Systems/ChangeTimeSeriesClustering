@@ -1,0 +1,13 @@
+<config>
+    <sourceFilePath>C:\Users\Leon.Bornemann\Documents\Database Changes\Data\wikidata\settlements\small.csv.bz2</sourceFilePath>
+    <resultDirectory>/users/leon.bornemann/results/</resultDirectory>
+    <TimeGranularity>Monthly</TimeGranularity>
+    <GroupingKey>Entity</GroupingKey>
+    <minNumNonZeroYValues>0</minNumNonZeroYValues>
+    <clusteringAlgorithm>
+        <name>KMeans</name>
+        <FeatureExtractionMethod>EntireTimeSeries</FeatureExtractionMethod>
+        <k>3</k>
+        <maxIter>200</maxIter>
+    </clusteringAlgorithm>
+</config>

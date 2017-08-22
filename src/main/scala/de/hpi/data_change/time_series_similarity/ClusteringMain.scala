@@ -18,29 +18,31 @@ object ClusteringMain extends App with Serializable{
   if(args.length<1){
     throw new AssertionError("No Config file provided - terminating")
   }
-  val config = new ClusteringConfig(args(0))
-  //extract config
-  val sourceFilePath = config.sourceFilePath
-  var resultDirectory = config.resultDirectory
-  val granularity = config.granularity
-  val groupingKey = config.groupingKey
-  val minNumNonZeroYValues = config.minNumNonZeroYValues
-  val clusteringAlgorithmParameters = config.clusteringAlgorithmParameters
-  if(!resultDirectory.endsWith(File.separator)){
-    resultDirectory = resultDirectory + File.separator
+  for(file <- new File(args(0)).listFiles().filter(f => f.getName.endsWith(".xml"))) {
+    val config = new ClusteringConfig(file.getAbsolutePath)
+    //extract config
+    val sourceFilePath = config.sourceFilePath
+    var resultDirectory = config.resultDirectory
+    val granularity = config.granularity
+    val groupingKey = config.groupingKey
+    val minNumNonZeroYValues = config.minNumNonZeroYValues
+    val clusteringAlgorithmParameters = config.clusteringAlgorithmParameters
+    if (!resultDirectory.endsWith(File.separator)) {
+      resultDirectory = resultDirectory + File.separator
+    }
+    val configIdentifier = config.configIdentifier
+    //intitialize spark
+    var sparkBuilder = SparkSession
+      .builder()
+      .appName("Spark SQL basic example")
+    if (args.length == 2 && args(1) == "-local") {
+      sparkBuilder = sparkBuilder.master("local[4]")
+      resultDirectory = null; //we don't save anything in local mode
+    } else {
+      //serialize config to hadoop
+      config.serializeToHadoop()
+    }
+    val spark = sparkBuilder.getOrCreate()
+    new TimeSeriesClusterer(spark, sourceFilePath, minNumNonZeroYValues, granularity, groupingKey, configIdentifier).buildClusters(clusteringAlgorithmParameters, resultDirectory)
   }
-  val configIdentifier = config.configIdentifier
-  //intitialize spark
-  var sparkBuilder = SparkSession
-    .builder()
-    .appName("Spark SQL basic example")
-  if(args.length==2 && args(1) == "-local" ){
-    sparkBuilder = sparkBuilder.master("local[4]")
-    resultDirectory = null; //we don't save anything in local mode
-  } else{
-    //serialize config to hadoop
-    config.serializeToHadoop()
-  }
-  val spark = sparkBuilder.getOrCreate()
-  new TimeSeriesClusterer(spark,sourceFilePath,minNumNonZeroYValues,granularity,groupingKey,configIdentifier).buildClusters(clusteringAlgorithmParameters,resultDirectory)
 }

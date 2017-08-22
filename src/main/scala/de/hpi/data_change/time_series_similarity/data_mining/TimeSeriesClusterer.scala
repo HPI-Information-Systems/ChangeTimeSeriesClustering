@@ -23,8 +23,8 @@ case class TimeSeriesClusterer(spark: SparkSession, filePath: String,minNumNonZe
     println("Cost is: " + kmeansModel.computeCost(finalDf))
     println("Starting to save results")
     if(resultDir!=null) {
-      resultDF.select("name", "assignedCluster").write.csv(resultDir + configIdentifier + "_result")
-      kmeansModel.write.save(resultDir + configIdentifier + "_model.spark")
+      resultDF.select("name", "assignedCluster").write.csv(resultDir + configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + "result")
+      kmeansModel.write.save(resultDir + configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + "model")
     }
   }
 
