@@ -7,7 +7,7 @@ import org.apache.spark.sql.{Row, RowFactory, SparkSession}
 
 import scala.collection.mutable.ListBuffer
 
-class MainVisualizer(spark: SparkSession) extends Serializable {
+class MainVisualizer1(spark: SparkSession) extends Serializable {
   //    val trans = new SimpleCategoryTransformer()
   //    trans.categories(LanguageCategory.LATIN).foreach(println(_))
   //  trans.categories(LanguageCategory.ARABIC).foreach(println(_))
