@@ -35,6 +35,7 @@ case class TimeSeriesAggregator(spark:SparkSession,minNumNonZeroYValues: Int, gr
   private def toTimeSeries(groupedByKey: KeyValueGroupedDataset[String, ChangeRecord],groupingObject:TimeGranularityGrouper) = {
     groupedByKey.mapGroups((key, changeRecords) => groupingObject.toSingleDimensionalTimeSeries(key, changeRecords, granularity))
       .filter(ts => ts.numNonZeroYValues >= minNumNonZeroYValues)
+      .filter(ts => ts.name != null)
   }
 
 }

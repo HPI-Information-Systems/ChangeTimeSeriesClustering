@@ -23,7 +23,7 @@ case class TimeSeriesClusterer(spark: SparkSession, filePath: String,minNumNonZe
     println("Cost is: " + kmeansModel.computeCost(finalDf))
     println("Starting to save results")
     if(resultDir!=null) {
-      resultDF.select("name", "assignedCluster").write.csv(resultDir + configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + "result")
+      resultDF.select("name", "assignedCluster","features").write.csv(resultDir + configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + "result")
       kmeansModel.write.save(resultDir + configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + "model")
     }
   }
@@ -34,7 +34,7 @@ case class TimeSeriesClusterer(spark: SparkSession, filePath: String,minNumNonZe
     val featureExtractionMethod = FeatureExtractionMethod.withName(params.get("FeatureExtractionMethod").get)
     assert(featureExtractionMethod == FeatureExtractionMethod.EntireTimeSeries)
     val timeSeries = new TimeSeriesAggregator(spark,minNumNonZeroYValues,granularity,groupingKey).aggregateToTimeSeries(filePath)
-    val rdd = timeSeries.rdd.map(ts => RowFactory.create(ts.name,Vectors.dense(ts.getClusteringFeatures())))
+    val rdd = timeSeries.rdd.map(ts => {assert(ts.name !=null);RowFactory.create(ts.name,Vectors.dense(ts.getClusteringFeatures()))})
     val fields = Array(DataTypes.createStructField("name",DataTypes.StringType,false),DataTypes.createStructField("features",VectorType,false))
     val schema = new StructType(fields)
     val finalDf = spark.createDataFrame(rdd,schema)

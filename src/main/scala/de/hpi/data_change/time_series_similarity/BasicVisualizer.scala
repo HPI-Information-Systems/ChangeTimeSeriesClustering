@@ -4,7 +4,6 @@ import de.hpi.data_change.time_series_similarity.visualization.BarChart
 import org.apache.spark.sql.{Row, SparkSession}
 
 case class BasicVisualizer(spark: SparkSession, filePath: String) {
-  val clusteringResult = spark.read.csv(filePath)
   import spark.implicits._
   def groupFromName(name: String): String = {
     val r = scala.util.Random
@@ -21,8 +20,10 @@ case class BasicVisualizer(spark: SparkSession, filePath: String) {
     res
   }
 
+  val clusteringResult = spark.read.csv(filePath)
   val grouped = clusteringResult.groupByKey(r => "cluster_"+r.getAs[Int](1))
-
+  val clusterSizes = grouped.mapGroups{case (cluster,it) => (cluster,it.size)}.collect()
+  clusterSizes.foreach{case (cluster,size) => println(cluster + "has size "+ size )}
   val finalDs = grouped.flatMapGroups{case (cluster,rowIterator) => toTripleList(cluster,rowIterator)}
   val finalList = finalDs.collect()
   var chartRelative = new BarChart("first Try Barchart Relative",finalList,true)
