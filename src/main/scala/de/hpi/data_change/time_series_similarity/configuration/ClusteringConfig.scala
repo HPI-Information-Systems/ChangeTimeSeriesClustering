@@ -1,12 +1,10 @@
-package de.hpi.data_change.time_series_similarity
+package de.hpi.data_change.time_series_similarity.configuration
 
 import java.io.{File, PrintWriter}
 
-import de.hpi.data_change.time_series_similarity.configuration.{ClusteringAlgorithm, GroupingKey, TimeGranularity}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
-import xml._
 import scala.xml.{Elem, XML}
 
 class ClusteringConfig() {

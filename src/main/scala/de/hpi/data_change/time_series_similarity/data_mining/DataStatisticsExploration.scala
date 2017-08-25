@@ -3,7 +3,6 @@ package de.hpi.data_change.time_series_similarity.data_mining
 import java.time.LocalDateTime
 
 import breeze.plot._
-import de.hpi.data_change.time_series_similarity.SimpleCategoryTransformer
 import de.hpi.data_change.time_series_similarity.data.ChangeRecord
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 
@@ -37,6 +36,7 @@ case class DataStatisticsExploration(spark: SparkSession, filePath: String) {
 
   def explore(resultDir:String) = {
     val rawData = spark.read.csv(filePath)
+    //TODO: change this to use the TimeSeriesAggeragtor method!
     val changeRecords = rawData.map( new ChangeRecord(_))
     entityStatistics(changeRecords,resultDir)
     propertyStatistics(changeRecords,resultDir)
@@ -46,21 +46,6 @@ case class DataStatisticsExploration(spark: SparkSession, filePath: String) {
 //      val timeSeriesDataset: Dataset[MultiDimensionalTimeSeries] = aggregator.aggregateToTimeSeries(filePath)
 //      timeSeriesDataset
 //    }
-  }
-
-  def exploreCategoryStatistics(): Unit ={
-    val trans = new SimpleCategoryTransformer()
-    val rawData = spark.read.csv(filePath)
-    val changeRecords = rawData.map( new ChangeRecord(_))
-    val changeCount = changeRecords
-      .map(cr => cr.entity)
-      .distinct()
-      .filter( e => e !=null)
-      .map( entity => (trans.getLanguage(entity).toString,entity))
-        .groupByKey{case (language,entity) => language}
-          .mapGroups{case (language,list) => (language,list.size)}
-          .collect()
-    changeCount.foreach(println(_))
   }
 
   private def entityStatistics(changeRecords: Dataset[ChangeRecord],resultDir:String) = {

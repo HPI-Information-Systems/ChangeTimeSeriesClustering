@@ -13,14 +13,17 @@ case class TimeSeriesAggregator(spark:SparkSession,minNumNonZeroYValues: Int, gr
   implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
 
   def aggregateToTimeSeries(filePath:String): Dataset[MultiDimensionalTimeSeries] = {
-    val rawData = spark.read.csv(filePath)
-    val changeRecords = rawData.map( new ChangeRecord(_))
+    val changeRecords = getChangeRecordDataSet(filePath)
     val distinctYears = changeRecords.map(cr => cr.timestamp.getYear).distinct().collect().toList //TODO: if we aggregate daily, we will maybe get some zeros padded to all timeseries
     val groupingObject = new TimeGranularityGrouper(distinctYears.min,distinctYears.max)
     //accumulation to multidimensional time series:
     println("num Distinct years: " + distinctYears.size)
     aggregateToTimeSeries(changeRecords,groupingObject)
+  }
 
+  def getChangeRecordDataSet(filePath:String): Dataset[ChangeRecord] ={
+    val rawData = spark.read.option("wholeFile","True").csv(filePath)
+    rawData.filter(r => r.getString(3) !=null).map( new ChangeRecord(_))
   }
 
   def aggregateToTimeSeries(resAsCR: Dataset[ChangeRecord], groupingObject: TimeGranularityGrouper): Dataset[MultiDimensionalTimeSeries] = {

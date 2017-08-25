@@ -1,6 +1,7 @@
 package de.hpi.data_change.time_series_similarity.preprocessing
 
 import java.io._
+import java.time.LocalDateTime
 import java.util.zip.GZIPInputStream
 
 import scala.collection.mutable
@@ -15,7 +16,7 @@ object CategoryBatcher extends App{
   var batchNumber = 0
   var lineNumber:Long = 1
   var batchLineSize = 1000
-  val firstBatchSize = 44
+  val firstBatchSize = 40
   val lineBuffer = new mutable.ListBuffer[String]()
 
   def printFile(lineBuffer: Seq[String], resultDir: String, batchNumber: Int) = {
@@ -25,18 +26,24 @@ object CategoryBatcher extends App{
     writer.close()
   }
 
-  while(line!=null){
+  //first batch
+  while(lineNumber<=firstBatchSize){
     lineBuffer.append(line)
-    if(lineNumber == firstBatchSize || lineNumber > firstBatchSize && lineBuffer.size==batchLineSize){
-      printFile(lineBuffer,resultDir,batchNumber)
-      batchNumber +=1
-      lineBuffer.clear()
-    }
     lineNumber+=1
     line = reader.readLine()
   }
-  if(!lineBuffer.isEmpty){
-    printFile(lineBuffer,resultDir,batchNumber)
+  printFile(lineBuffer,resultDir,batchNumber)
+
+  val writer = new PrintWriter(new FileWriter(new File(resultDir + "batch_"+1+".sql")))
+  println("starting new batch")
+  while(line!=null){
+    if(lineNumber %100 == 0){
+      println(LocalDateTime.now() + ":  transferred 100 lines")
+    }
+    writer.println(line)
+    lineNumber+=1
+    line = reader.readLine()
   }
+
   reader.close()
 }

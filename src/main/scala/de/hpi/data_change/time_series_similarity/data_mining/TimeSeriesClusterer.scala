@@ -1,7 +1,7 @@
 package de.hpi.data_change.time_series_similarity.data_mining
 
 import de.hpi.data_change.time_series_similarity.configuration.{ClusteringAlgorithm, FeatureExtractionMethod, GroupingKey, TimeGranularity}
-import org.apache.spark.ml.clustering.KMeans
+import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql._
@@ -10,7 +10,7 @@ import org.apache.spark.sql.types.{DataTypes, StructType}
 
 case class TimeSeriesClusterer(spark: SparkSession, filePath: String,minNumNonZeroYValues:Int,granularity:TimeGranularity.Value,groupingKey:GroupingKey.Value,configIdentifier:String) {
 
-  def kmeansClustering(params:Map[String,String], resultDir: String, finalDf:Dataset[Row]) = {
+  def kmeansClustering(params:Map[String,String],finalDf:Dataset[Row]):(Dataset[Row],KMeansModel) = {
     val numClusters = params.get("k").get.toInt
     val numIterations = params.get("maxIter").get.toInt
     val clusteringAlg = new KMeans()
@@ -22,14 +22,11 @@ case class TimeSeriesClusterer(spark: SparkSession, filePath: String,minNumNonZe
     val resultDF = kmeansModel.transform(finalDf)
     println("Cost is: " + kmeansModel.computeCost(finalDf))
     println("Starting to save results")
-    if(resultDir!=null) {
-      resultDF.select("name", "assignedCluster","features").write.csv(resultDir + configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + "result")
-      kmeansModel.write.save(resultDir + configIdentifier + org.apache.hadoop.fs.Path.SEPARATOR + "model")
-    }
+    (resultDF,kmeansModel)
   }
 
 
-  def buildClusters(params:Map[String,String], resultDir:String) = {
+  def buildClusters(params:Map[String,String]) = {
     val algorithm = ClusteringAlgorithm.withName(params.get("name").get)
     val featureExtractionMethod = FeatureExtractionMethod.withName(params.get("FeatureExtractionMethod").get)
     assert(featureExtractionMethod == FeatureExtractionMethod.EntireTimeSeries)
@@ -39,7 +36,7 @@ case class TimeSeriesClusterer(spark: SparkSession, filePath: String,minNumNonZe
     val schema = new StructType(fields)
     val finalDf = spark.createDataFrame(rdd,schema)
     algorithm match {
-      case ClusteringAlgorithm.KMeans => kmeansClustering(params,resultDir,finalDf)
+      case ClusteringAlgorithm.KMeans => kmeansClustering(params,finalDf)
       case _ => throw new AssertionError("unknown clustering algorithm specified")
     }
   }
