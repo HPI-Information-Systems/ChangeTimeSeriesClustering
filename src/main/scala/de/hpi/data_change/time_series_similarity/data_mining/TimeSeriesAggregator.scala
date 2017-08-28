@@ -22,7 +22,7 @@ case class TimeSeriesAggregator(spark:SparkSession,minNumNonZeroYValues: Int, gr
   }
 
   def getChangeRecordDataSet(filePath:String): Dataset[ChangeRecord] ={
-    val rawData = spark.read.option("wholeFile","True").csv(filePath)
+    val rawData = spark.read.csv(filePath)
     rawData.filter(r => r.getString(3) !=null).map( new ChangeRecord(_))
   }
 
