@@ -17,7 +17,7 @@ class PairwiseSimilarityExtractorTest extends FlatSpec{
       .appName("Spark SQL basic example")
       .master("local[1]")
     val spark = sparkBuilder.getOrCreate()
-    val executor = new PairwiseSimilarityExtractor(0,TimeGranularity.Monthly,GroupingKey.Entity,spark,"src/main/resources/testData.csv")
+    val executor = new PairwiseSimilarityExtractor(null,TimeGranularity.Monthly,GroupingKey.Entity,spark,"src/main/resources/testData.csv")
     val result = executor.calculatePairwiseSimilarity(null)
     val first = result.head()
     assert(first._1 == "e1")

@@ -1,13 +1,28 @@
 package de.hpi.data_change.time_series_similarity.io
 
-import java.io.File
+import java.io.{File, FileInputStream, ObjectInputStream}
 
+import de.hpi.data_change.time_series_similarity.configuration.ClusteringConfig
 import org.apache.spark.ml.clustering.KMeansModel
 import org.apache.spark.sql.SparkSession
+
+import scala.collection.mutable
 
 class ResultIO {
 }
 object ResultIO{
+
+  def readCategoryMap() = {
+    val in = new ObjectInputStream(new FileInputStream("src/main/resources/results/categoryMap.obj"))
+    val categoryMap = in.readObject().asInstanceOf[mutable.Map[String,mutable.Set[String]]]
+    categoryMap
+  }
+
+  def loadConfig(filePath: String):ClusteringConfig = {
+    val configFile = new File(filePath).listFiles().filter( f => f.getName.endsWith(".xml") && f.getName.contains("config")).head
+    new ClusteringConfig(configFile.getAbsolutePath)
+  }
+
   def loadClusteringResult(spark: SparkSession, filePath: String) = {
     spark.read.load(filePath + File.separator + "result" + File.separator)
   }

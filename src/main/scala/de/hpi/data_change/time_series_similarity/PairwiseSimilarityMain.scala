@@ -29,5 +29,5 @@ object PairwiseSimilarityMain extends App with Serializable{
   }
   val spark = sparkBuilder.getOrCreate()
   val resultDir = if(args(1).endsWith(File.separator)) args(1) else args(1) + File.separator
-  new PairwiseSimilarityExtractor(minNumNonZeroYValues,granularity,groupingKey,spark,args(0)).calculatePairwiseSimilarity(args(1))
+  new PairwiseSimilarityExtractor(null,granularity,groupingKey,spark,args(0)).calculatePairwiseSimilarity(args(1))
 }

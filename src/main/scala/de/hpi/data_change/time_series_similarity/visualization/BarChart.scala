@@ -6,6 +6,13 @@ import org.jfree.chart.{ChartFactory, ChartPanel, JFreeChart}
 import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.jfree.ui.{ApplicationFrame, RefineryUtilities}
+import org.jfree.chart.labels.ItemLabelAnchor
+import org.jfree.chart.labels.ItemLabelPosition
+import org.jfree.chart.labels.StandardCategoryItemLabelGenerator
+import org.jfree.ui.TextAnchor
+import org.jfree.chart.plot.CategoryPlot
+import org.jfree.chart.renderer.category.CategoryItemRenderer
+
 
 class BarChart(title: String, data: Seq[(String, String, Double)],relative:Boolean) extends ApplicationFrame(title){
 
@@ -43,10 +50,25 @@ class BarChart(title: String, data: Seq[(String, String, Double)],relative:Boole
   }
 
   val chart: JFreeChart = createChart()
+
+  val renderer: CategoryItemRenderer = chart.getPlot.asInstanceOf[CategoryPlot].getRenderer
+  //val labelGen = new StandardCategoryItemLabelGenerator()
+  val labelGen = new MyCategoryItemLabelGen()
+  renderer.setBaseItemLabelGenerator(labelGen)
+  renderer.setBaseItemLabelsVisible(true)
+  val position = new ItemLabelPosition(ItemLabelAnchor.OUTSIDE12, TextAnchor.TOP_CENTER)
+  renderer.setBasePositiveItemLabelPosition(position)
   val chartPanel = new ChartPanel(chart)
   //chartPanel.setPreferredSize(java.awt.Toolkit.getDefaultToolkit.getScreenSize)
   chartPanel.setPreferredSize(new Dimension(700,700))
   setContentPane(chartPanel)
+
+  class MyCategoryItemLabelGen() extends StandardCategoryItemLabelGenerator{
+
+    @Override override def generateLabel(dataset: CategoryDataset, row: Int, column: Int): String = {
+      "%.2f".format(dataset.getValue(row,column)) + " (" + dataset.getRowKey(row).toString.replaceAll("_","\r\n") + ")"
+    }
+  }
 
 }
 

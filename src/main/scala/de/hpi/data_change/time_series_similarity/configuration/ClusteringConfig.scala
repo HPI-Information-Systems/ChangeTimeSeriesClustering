@@ -14,12 +14,11 @@ class ClusteringConfig() {
     pw.close
   }
 
-
   var sourceFilePath: String=null
   var resultDirectory:String=null
   var granularity:TimeGranularity.Value=null
   var groupingKey:GroupingKey.Value=null
-  var minNumNonZeroYValues:Int=0
+  var timeSeriesFilter:TimeSeriesFilter= null;
   var clusteringAlgorithmParameters:Map[String,String]=null
   var configIdentifier:String=null
   var configAsXML:Elem = null
@@ -33,8 +32,8 @@ class ClusteringConfig() {
     resultDirectory = (configAsXML \ "resultDirectory").text
     granularity = TimeGranularity.withName((configAsXML \ "TimeGranularity" ).text)
     groupingKey = GroupingKey.withName((configAsXML \ "GroupingKey" ).text)
-    minNumNonZeroYValues = (configAsXML \ "minNumNonZeroYValues" ).text.toInt
     clusteringAlgorithmParameters = (configAsXML \ "clusteringAlgorithm" \ "_").map( node => (node.label,node.text)).toMap
+    timeSeriesFilter = new TimeSeriesFilter((configAsXML \ "timeSeriesFilter" \ "_").map( node => (node.label,node.text)).toMap)
     configIdentifier = new File(filePath).getName.split("\\.")(0)
   }
 
@@ -44,11 +43,14 @@ class ClusteringConfig() {
     x += <resultDirectory>{resultDirectory}</resultDirectory>
     x += <TimeGranularity>{granularity}</TimeGranularity>
     x += <GroupingKey>{groupingKey}</GroupingKey>
-    x += <minNumNonZeroYValues>{minNumNonZeroYValues}</minNumNonZeroYValues>
 
     val y = new xml.NodeBuffer
     clusteringAlgorithmParameters.toList.foreach{case(k,v) => y += <xml>{v}</xml>.copy(label=k)}
     x+= <clusteringAlgorithm>{y}</clusteringAlgorithm>
+
+    val z = new xml.NodeBuffer
+    timeSeriesFilter.params.toList.foreach{case(k,v) => z += <xml>{v}</xml>.copy(label=k)}
+    x += <timeSeriesFilter>{z}</timeSeriesFilter>
     val prettyPrinter = new scala.xml.PrettyPrinter(500,2)
     prettyPrinter.format(<config>{x}</config>)
   }

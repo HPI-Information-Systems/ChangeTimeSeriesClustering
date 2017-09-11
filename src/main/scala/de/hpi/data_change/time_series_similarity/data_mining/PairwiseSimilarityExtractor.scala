@@ -3,20 +3,20 @@ package de.hpi.data_change.time_series_similarity.data_mining
 import java.sql.Timestamp
 import java.time.LocalDateTime
 
-import de.hpi.data_change.time_series_similarity.configuration.{GroupingKey, TimeGranularity}
+import de.hpi.data_change.time_series_similarity.configuration.{GroupingKey, TimeGranularity, TimeSeriesFilter}
 import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, MultiDimensionalTimeSeries}
 import org.apache.spark.sql._
 
 import scala.collection.Map
 
-case class PairwiseSimilarityExtractor(minNumNonZeroYValues: Int, granularity: TimeGranularity.Value, groupingKey: GroupingKey.Value, spark: SparkSession, filePath: String) {
+case class PairwiseSimilarityExtractor(timeSeriesFilter:TimeSeriesFilter, granularity: TimeGranularity.Value, groupingKey: GroupingKey.Value, spark: SparkSession, filePath: String) {
 
   import spark.implicits._
   implicit def changeRecordEncoder: Encoder[ChangeRecord] = org.apache.spark.sql.Encoders.kryo[ChangeRecord]
   implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
 
   def calculatePairwiseSimilarity(resultDir:String): Dataset[(String,String,Double)] = {
-    val aggregator = new TimeSeriesAggregator(spark, minNumNonZeroYValues, granularity, groupingKey)
+    val aggregator = new TimeSeriesAggregator(spark, timeSeriesFilter, granularity, groupingKey)
     val timeSeriesDataset: Dataset[MultiDimensionalTimeSeries] = aggregator.aggregateToTimeSeries(filePath)
     //create cartesian product:
     println("total elements to process: " + timeSeriesDataset.count())

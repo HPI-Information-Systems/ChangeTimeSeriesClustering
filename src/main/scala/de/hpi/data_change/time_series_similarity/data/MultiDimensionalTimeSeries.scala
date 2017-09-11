@@ -6,6 +6,8 @@ import scala.collection.Map
 
 case class MultiDimensionalTimeSeries(name:String, data:Map[String,Seq[Double]], timeAxis:Seq[Timestamp]) {
 
+  def yValues(): Seq[Double] = getDim(0)
+
   //TODO: account for multidimensionality...
   def getClusteringFeatures() = getDim(0)
 
@@ -21,6 +23,13 @@ case class MultiDimensionalTimeSeries(name:String, data:Map[String,Seq[Double]],
       throw new IllegalArgumentException("number of values does not match number of timestamps for key " + k)
     }
     timeSeries(dimNames.indexOf(k)) = values.toArray
+  }
+
+  def safeToLog(y: Double): Double = if(y >1 ) Math.log(y) else y
+
+  def yAsLog() = {
+    val mappedData = data.map{case (name,vals) => (name,vals.map( y => safeToLog(y)))}
+    MultiDimensionalTimeSeries(name,mappedData,timeAxis)
   }
 
   def get(dim:String,i:Int) = timeSeries(dimNames.indexOf(dim))(i)

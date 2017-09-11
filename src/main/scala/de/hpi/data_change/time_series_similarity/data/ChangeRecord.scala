@@ -3,9 +3,20 @@ package de.hpi.data_change.time_series_similarity.data
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+import org.apache.commons.csv.CSVRecord
 import org.apache.spark.sql.Row
 
 class ChangeRecord(val entity:String, val property:String,val value:String,val timestamp:LocalDateTime) {
+
+  def timestampAsString: String = ChangeRecord.formatter.format(timestamp)
+
+  def this(r:CSVRecord){
+    this(ChangeRecord.transformIfNull(r.get(ChangeRecord.entityIndex)),
+      ChangeRecord.transformIfNull(r.get(ChangeRecord.propertyIndex)),
+      ChangeRecord.transformIfNull(r.get(ChangeRecord.valueIndex)),
+      LocalDateTime.parse(r.get(ChangeRecord.datetimeIndex),ChangeRecord.formatter))
+  }
+
 
   def this(r:Row){
     this(ChangeRecord.transformIfNull(r.getString(ChangeRecord.entityIndex)),

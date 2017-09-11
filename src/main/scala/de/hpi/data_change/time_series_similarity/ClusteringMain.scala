@@ -29,7 +29,7 @@ object ClusteringMain extends App with Serializable{
     .builder()
     .appName("Spark SQL basic example")
   if (isLocalMode) {
-    sparkBuilder = sparkBuilder.master("local[4]")
+    sparkBuilder = sparkBuilder.master("local[2]")
   }
   val spark = sparkBuilder.getOrCreate()
   for(file <- new File(args(0)).listFiles().filter(f => f.getName.endsWith(".xml"))) {
@@ -40,7 +40,7 @@ object ClusteringMain extends App with Serializable{
     var resultDirectory = config.resultDirectory
     val granularity = config.granularity
     val groupingKey = config.groupingKey
-    val minNumNonZeroYValues = config.minNumNonZeroYValues
+    val timeSeriesFilter = config.timeSeriesFilter
     val clusteringAlgorithmParameters = config.clusteringAlgorithmParameters
     if (!resultDirectory.endsWith(File.separator)) {
       resultDirectory = resultDirectory + File.separator
@@ -48,22 +48,23 @@ object ClusteringMain extends App with Serializable{
     val configIdentifier = config.configIdentifier
     writer.println(LocalDateTime.now() +  ":  starting config " + configIdentifier)
     writer.close()
-    var hadoopInteraction = new HadoopInteraction()
+    var hadoopInteraction:HadoopInteraction = null
     if (isLocalMode) {
       resultDirectory = null;
       hadoopInteraction = null;
     } else {
       //serialize config to hadoop
+      hadoopInteraction = new HadoopInteraction()
       hadoopInteraction.writeToFile(config.getAsXML(),resultDirectory +configIdentifier + "/" + configIdentifier + ".xml")
     }
-    val res = new TimeSeriesClusterer(spark, sourceFilePath, minNumNonZeroYValues, granularity, groupingKey, configIdentifier).buildClusters(clusteringAlgorithmParameters)
+    val res = new TimeSeriesClusterer(spark, sourceFilePath, timeSeriesFilter, granularity, groupingKey, configIdentifier).buildClusters(clusteringAlgorithmParameters)
     val resultDf = res._1
     val model = res._2
+    val tablePath = resultDirectory + "results.CSV.txt"
+    val resultSerializer = new ResultSerializer(spark,resultDf,model)
+    val tableLine = resultSerializer.serialize(resultDirectory,configIdentifier,config,hadoopInteraction)
     if(!isLocalMode){
-      val tablePath = resultDirectory + "results.CSV.txt"
-      val resultSerializer = new ResultSerializer(spark,resultDf,model)
-      val res = resultSerializer.serialize(resultDirectory,configIdentifier,config)
-      //hadoopInteraction.appendLineToCsv(res,tablePath)
+      hadoopInteraction.appendLineToCsv(tableLine,tablePath)
     }
   }
 }

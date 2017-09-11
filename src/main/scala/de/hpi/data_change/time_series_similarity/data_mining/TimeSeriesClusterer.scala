@@ -1,6 +1,6 @@
 package de.hpi.data_change.time_series_similarity.data_mining
 
-import de.hpi.data_change.time_series_similarity.configuration.{ClusteringAlgorithm, FeatureExtractionMethod, GroupingKey, TimeGranularity}
+import de.hpi.data_change.time_series_similarity.configuration._
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
@@ -8,7 +8,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.types.{DataTypes, StructType}
 
 
-case class TimeSeriesClusterer(spark: SparkSession, filePath: String,minNumNonZeroYValues:Int,granularity:TimeGranularity.Value,groupingKey:GroupingKey.Value,configIdentifier:String) {
+case class TimeSeriesClusterer(spark: SparkSession, filePath: String, timeSeriesFilter:TimeSeriesFilter, granularity:TimeGranularity.Value, groupingKey:GroupingKey.Value, configIdentifier:String) {
 
   def kmeansClustering(params:Map[String,String],finalDf:Dataset[Row]):(Dataset[Row],KMeansModel) = {
     val numClusters = params.get("k").get.toInt
@@ -29,8 +29,7 @@ case class TimeSeriesClusterer(spark: SparkSession, filePath: String,minNumNonZe
   def buildClusters(params:Map[String,String]) = {
     val algorithm = ClusteringAlgorithm.withName(params.get("name").get)
     val featureExtractionMethod = FeatureExtractionMethod.withName(params.get("FeatureExtractionMethod").get)
-    assert(featureExtractionMethod == FeatureExtractionMethod.EntireTimeSeries)
-    val timeSeries = new TimeSeriesAggregator(spark,minNumNonZeroYValues,granularity,groupingKey).aggregateToTimeSeries(filePath)
+    val timeSeries = new TimeSeriesAggregator(spark,timeSeriesFilter,granularity,groupingKey).aggregateToTimeSeries(filePath,featureExtractionMethod)
     val rdd = timeSeries.rdd.map(ts => {assert(ts.name !=null);RowFactory.create(ts.name,Vectors.dense(ts.getClusteringFeatures()))})
     val fields = Array(DataTypes.createStructField("name",DataTypes.StringType,false),DataTypes.createStructField("features",VectorType,false))
     val schema = new StructType(fields)
