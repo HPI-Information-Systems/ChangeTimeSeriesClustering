@@ -8,7 +8,7 @@ import scala.collection.mutable.ListBuffer
 
 object CategoryStatistics extends App{
 
-  val cats = ResultIO.readCategoryMap()
+  val cats = ResultIO.readFullCategoryMap()
   val allCats = cats.values.flatMap( s => s).toSet
   val reverseMap = scala.collection.mutable.Map[String,ListBuffer[String]]()
   var map = scala.collection.mutable.Map[String,(Int,Double)]()
@@ -72,8 +72,11 @@ object CategoryStatistics extends App{
   val correlationMatrix = getCorrelationMatrix( newMap.toList.sortBy(t => - t._2._1).map(t => t._1).take(10))
   println(new TabluarResultFormatter().format(correlationMatrix))
   //TODO: test if something is still weird!
-  val test1 = reverseMap("Cities_in_Missouri")
-  val test2 = cats("Jefferson_City,_Missouri")
-  val test3 = reverseMap("Jefferson_City,_Missouri")
-  println("asd")
+  val test1 = reverseMap("1980s_births")
+  val test3 = reverseMap("1985_births")
+  println(test1.size)
+  println(test3.size)
+  test1.foreach( c => println(c))
+  println(overlapment("1980s_births","1985_births"))
+  println(cats.filter{case (k,v) => v.size>1}.size)
 }

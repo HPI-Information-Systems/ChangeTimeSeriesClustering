@@ -22,12 +22,22 @@ class ChangeRecord(val entity:String, val property:String,val value:String,val t
     this(ChangeRecord.transformIfNull(r.getString(ChangeRecord.entityIndex)),
       ChangeRecord.transformIfNull(r.getString(ChangeRecord.propertyIndex)),
       ChangeRecord.transformIfNull(r.getString(ChangeRecord.valueIndex)),
-      LocalDateTime.parse(r.getString(ChangeRecord.datetimeIndex),ChangeRecord.formatter))
+      ChangeRecord.getTimeStamp(r))
   }
 }
 
 //for storing indice constants:
 object ChangeRecord{
+
+  def getTimeStamp(r: Row): java.time.LocalDateTime = {
+    try {
+      LocalDateTime.parse(r.getString(ChangeRecord.datetimeIndex), ChangeRecord.formatter)
+    }
+    catch {
+      case e:Throwable => println("huh"); throw e;
+    }
+  }
+
 
   def transformIfNull(str: String): String = {
     if(str==null) "null" else str

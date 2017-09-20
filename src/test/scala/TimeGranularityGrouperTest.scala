@@ -18,7 +18,7 @@ class TimeGranularityGrouperTest extends FlatSpec {
     val groupingObject = new TimeGranularityGrouper(2000,2001)
     val ts = groupingObject.toSingleDimensionalDailyTimeSeries("a",records.iterator)
     assert(ts.numNonZeroYValues == 3)
-    val yValues = ts.getDim(ts.dimNames(0) )
+    val yValues = ts.timeSeries
     assert(yValues.sum == 4)
     assert(yValues.size == timestamp1.toLocalDate.lengthOfYear() + timestamp4.toLocalDate.lengthOfYear())
     //check that the actual values are correct:
@@ -46,7 +46,7 @@ class TimeGranularityGrouperTest extends FlatSpec {
     val groupingObject = new TimeGranularityGrouper(2000,2001)
     val ts = groupingObject.toSingleDimensionalMonthlyTimeSeries("a",records.iterator)
     assert( 3 == ts.numNonZeroYValues)
-    val yValues = ts.getDim(ts.dimNames(0) )
+    val yValues = ts.timeSeries
     assert(5 == yValues.sum)
     assert(24 == yValues.size)
     val expected3Index = 10-1
@@ -73,7 +73,7 @@ class TimeGranularityGrouperTest extends FlatSpec {
     val groupingObject = new TimeGranularityGrouper(2000,2002)
     val ts = groupingObject.toSingleDimensionalYearlyTimeSeries("a",records.iterator)
     assert( 3 == ts.numNonZeroYValues)
-    val yValues = ts.getDim(ts.dimNames(0) )
+    val yValues = ts.timeSeries
     assert(5 == yValues.sum)
     assert(3 == yValues.size)
     val expected3Index = 0
@@ -83,5 +83,29 @@ class TimeGranularityGrouperTest extends FlatSpec {
     //check that the correct timestamps are at that position:
     val dateFor3 = groupingObject.toStandardDateInYear(2000).toLocalDate
     assert(ts.timeAxis(expected3Index).toLocalDateTime.toLocalDate == dateFor3)
+  }
+
+  "Month of year Aggregation" should "correctly aggregate by month, regardless of actual year, always resulting in 12 values" in {
+    val timestamp1 = LocalDateTime.of(2000,10,10,12,0)
+    val timestamp2 = LocalDateTime.of(2000,10,10,13,0)
+    val timestamp3 = LocalDateTime.of(2012,10,11,12,0)
+    val timestamp4 = LocalDateTime.of(2000,11,10,12,0)
+    val timestamp5 = LocalDateTime.of(2001,11,10,12,0)
+    val records = List(new ChangeRecord("a","some-prop","some-value",timestamp1),
+      new ChangeRecord("a","some-prop2","some-value",timestamp2),
+      new ChangeRecord("a","some-prop3","some-value",timestamp3),
+      new ChangeRecord("a","some-prop4","some-value",timestamp4),
+      new ChangeRecord("a","some-prop5","some-value",timestamp5)
+    )
+    val groupingObject = new TimeGranularityGrouper(2000,2001)
+    val ts = groupingObject.toMonthOfYearTimeSeries("a",records.iterator)
+    assert( 2 == ts.numNonZeroYValues)
+    val yValues = ts.timeSeries
+    assert(5 == yValues.sum)
+    assert(12 == yValues.size)
+    val expected3Index = 10-1
+    val expected2Index = 11-1
+    assert(3 == yValues(expected3Index))
+    assert(2.0 == yValues(expected2Index))
   }
 }

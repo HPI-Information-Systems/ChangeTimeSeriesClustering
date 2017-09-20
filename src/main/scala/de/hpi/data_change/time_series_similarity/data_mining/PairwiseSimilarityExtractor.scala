@@ -4,7 +4,7 @@ import java.sql.Timestamp
 import java.time.LocalDateTime
 
 import de.hpi.data_change.time_series_similarity.configuration.{GroupingKey, TimeGranularity, TimeSeriesFilter}
-import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, MultiDimensionalTimeSeries}
+import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, TimeSeries}
 import org.apache.spark.sql._
 
 import scala.collection.Map
@@ -17,7 +17,7 @@ case class PairwiseSimilarityExtractor(timeSeriesFilter:TimeSeriesFilter, granul
 
   def calculatePairwiseSimilarity(resultDir:String): Dataset[(String,String,Double)] = {
     val aggregator = new TimeSeriesAggregator(spark, timeSeriesFilter, granularity, groupingKey)
-    val timeSeriesDataset: Dataset[MultiDimensionalTimeSeries] = aggregator.aggregateToTimeSeries(filePath)
+    val timeSeriesDataset: Dataset[TimeSeries] = aggregator.aggregateToTimeSeries(filePath)
     //create cartesian product:
     println("total elements to process: " + timeSeriesDataset.count())
     val joinResult = getUnorderedPairs(timeSeriesDataset)
@@ -34,19 +34,19 @@ case class PairwiseSimilarityExtractor(timeSeriesFilter:TimeSeriesFilter, granul
     sorted
   }
 
-  def toTimeSeriesTuple(r: Row): (MultiDimensionalTimeSeries,MultiDimensionalTimeSeries) = {
+  def toTimeSeriesTuple(r: Row): (TimeSeries,TimeSeries) = {
     assert(r.length==6)
-    val first= MultiDimensionalTimeSeries(r.getAs[String](0), r.getAs[Map[String, Seq[Double]]](1), r.getAs[Seq[Timestamp]](2))
-    val second = MultiDimensionalTimeSeries(r.getAs[String](3), r.getAs[Map[String, Seq[Double]]](4), r.getAs[Seq[Timestamp]](5))
+    val first= TimeSeries(r.getAs[String](0), r.getAs[Seq[Double]](1), r.getAs[Seq[Timestamp]](2))
+    val second = TimeSeries(r.getAs[String](3), r.getAs[Seq[Double]](4), r.getAs[Seq[Timestamp]](5))
     (first,second)
   }
 
-  private def getUnorderedPairs(timeSeriesDataset: Dataset[MultiDimensionalTimeSeries]) = {
+  private def getUnorderedPairs(timeSeriesDataset: Dataset[TimeSeries]) = {
     spark.conf.set("spark.sql.crossJoin.enabled", value = true)
     println("\"spark.sql.crossJoin.enabled\": " + spark.conf.get("spark.sql.crossJoin.enabled"))
     val joinResult = timeSeriesDataset.toDF().join(timeSeriesDataset)
       .map(r => toTimeSeriesTuple(r))
-      .as[(MultiDimensionalTimeSeries, MultiDimensionalTimeSeries)]
+      .as[(TimeSeries, TimeSeries)]
       .filter((t) => t._1.name < t._2.name)
     //var joinResult = timeSeriesDataset.joinWith(toJoinWith, trivialCondition, "cross").filter((t) => t._1.name < t._2.name)
     joinResult

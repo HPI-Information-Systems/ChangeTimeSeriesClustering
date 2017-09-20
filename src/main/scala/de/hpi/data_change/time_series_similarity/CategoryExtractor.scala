@@ -6,6 +6,7 @@ import de.hpi.data_change.time_series_similarity.category_extraction.MySQLDataba
 import de.hpi.data_change.time_series_similarity.configuration.{GroupingKey, TimeGranularity}
 import de.hpi.data_change.time_series_similarity.data.BasicSparkQuerier
 import de.hpi.data_change.time_series_similarity.data_mining.TimeSeriesAggregator
+import de.hpi.data_change.time_series_similarity.io.DataIO
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.mutable
@@ -17,14 +18,29 @@ object CategoryExtractor extends App{
     .appName("Spark SQL basic example")
     .master("local[1]")
     .getOrCreate()
+
+  def testStuff() = {
+    val rawData = spark.read.option("quote","\"").csv("/home/leon/Desktop/toyExample.csv")
+    val a = rawData.collect()
+    println(a(0).getString(0))
+    println(a(0).getString(1))
+    println(a(0).getString(2))
+    println(a(0).getString(3))
+    assert(a(0).getString(3) == "2012-01-22 07:15:19.000000")
+    assert(a(0).size==4)
+  }
+
+  //testStuff()
+
   val connector = new MySQLDatabaseAccessor(spark)
-  //val in = new ObjectInputStream(new FileInputStream("src/main/resources/results/categoryMap.obj"))
+  //val in = new ObjectInputStream(new FileInputStream("src/main/resources/results/settlementsCategoryMap.obj"))
 
   //val t = in.readObject().asInstanceOf[mutable.Map[String,mutable.Set[String]]]
 
   def writeFile() = {
     val connector = new MySQLDatabaseAccessor(spark)
-    val t = connector.findTitles()
+    //val t = connector.findTitles(DataIO.getSettlementsFile.getAbsolutePath)
+    val t = connector.findTitles(DataIO.getFullWikidataSparkCompatibleFile().getAbsolutePath)
 
     val categoryMap = t._1
     val hasNoCategory = t._2
@@ -36,7 +52,7 @@ object CategoryExtractor extends App{
     val allPageNames = categoryMap.keySet.toList
     toFile(allPageNames,"/home/leon/Documents/data/wikidata/pageTitles.txt")
     toFile(hasNoCategory,"/home/leon/Documents/data/wikidata/pageWithNoCategories.txt")
-    val out = new ObjectOutputStream(new FileOutputStream("src/main/resources/results/categoryMap.obj"))
+    val out = new ObjectOutputStream(new FileOutputStream(DataIO.getFullCategoryMapFile))
     out.writeObject(categoryMap)
     out.close
   }

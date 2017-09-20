@@ -63,8 +63,5 @@ object ClusteringMain extends App with Serializable{
     val tablePath = resultDirectory + "results.CSV.txt"
     val resultSerializer = new ResultSerializer(spark,resultDf,model)
     val tableLine = resultSerializer.serialize(resultDirectory,configIdentifier,config,hadoopInteraction)
-    if(!isLocalMode){
-      hadoopInteraction.appendLineToCsv(tableLine,tablePath)
-    }
   }
 }

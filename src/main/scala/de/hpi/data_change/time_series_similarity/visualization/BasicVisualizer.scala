@@ -21,7 +21,7 @@ case class BasicVisualizer(spark: SparkSession, filePath: String) {
   implicit def rowEnc = org.apache.spark.sql.Encoders.kryo[Row]
   import spark.implicits._
 
-  val categoryMap = ResultIO.readCategoryMap()
+  val categoryMap:Map[String,Seq[String]] = null;//ResultIO.readFullCategoryMap()
 
   def getCategories(title: String):List[String] = {
     if (categoryMap.contains(title)) categoryMap(title).toList else List("unknown")

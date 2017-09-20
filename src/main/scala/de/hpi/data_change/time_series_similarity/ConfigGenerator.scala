@@ -1,13 +1,39 @@
 package de.hpi.data_change.time_series_similarity
 
 import de.hpi.data_change.time_series_similarity.configuration._
+import de.hpi.data_change.time_series_similarity.io.DataIO
 
 
 object ConfigGenerator extends App{
 
-  val sourceFilePathsServer = List("/users/leon.bornemann/settlements/dump.csv","/users/leon.bornemann/wikidata/dump.csv")
-  val sourceFilePathsLocal = List("/home/leon/Documents/data/wikidata/settlements/dump.csv")
-  val targetDir = "/home/leon/Documents/data/wikidata/results/configs/"
+  val sourceFilePathsServer = List("/users/leon.bornemann/data/20120323-en-updates_new_full_repaired_without_Value.csv","/users/leon.bornemann/settlements/dump.csv")
+  val targetDir = "/home/leon/Documents/researchProjects/wikidata/configs/"
+
+
+  generateSingleConfig("seasonalProperties_Normalized_Filtered",DataIO.getFullWikidataSparkCompatibleFile().getAbsolutePath,DataIO.getConfigTargetDir(),"Local")
+  //generateSingleConfig("seasonalProperties_Normalized",DataIO.getHDFSWikidataFilePath(),DataIO.getConfigTargetDir())
+
+  def generateSingleConfig(configName: String, sourceFilePath: String,resultPath:String,environment:String = "Server"): Unit = {
+    val targetDir = "home/leon/Documents/researchProjects/wikidata/configs/"
+    var resultDirectory = ""
+    if(environment == "Server") {
+      resultDirectory = "/users/leon.bornemann/results/"
+    } else{
+      assert(environment == "Local")
+      resultDirectory = "file:///home/leon/Documents/data/results/localResults/"
+    }
+    val config = new ClusteringConfig()
+    config.timeSeriesFilter = TimeSeriesFilter(Map(("name","MinNonZeryYVals"),("minNumNonZero","6")))
+    config.clusteringAlgorithmParameters = Map(("name",ClusteringAlgorithm.KMeans.toString),
+      ("FeatureExtractionMethod",FeatureExtractionMethod.EntireTimeSeriesNormalized.toString),
+      ("k","13"),
+      ("maxIter","100"))
+    config.granularity = TimeGranularity.MonthOfYear
+    config.groupingKey = GroupingKey.Property
+    config.resultDirectory = resultDirectory
+    config.sourceFilePath = sourceFilePath
+    config.serializeToFile(resultPath + configName + "_config.xml")
+  }
 
   def generate(configName: String, sourceFilePath: String,resultPath:String,environment:String = "Server") = {
     var resultDirectory = ""
@@ -40,7 +66,7 @@ object ConfigGenerator extends App{
     }
     configs.sortBy(c => (c.groupingKey,c.granularity,c.clusteringAlgorithmParameters("k")) ).zipWithIndex.foreach{ case (config,i) => config.serializeToFile(resultPath + configName + "_config" + i +".xml")}
   }
-  generate("settlements",sourceFilePathsLocal(0),targetDir,"Local")
+  //generate("settlements",sourceFilePathsLocal(0),targetDir,"Local")
   //generate("settlements",sourceFilePathsServer(0),targetDir)
   //generate("wikidata_complete",sourceFilePathsServer(1),targetDir)
 

@@ -9,7 +9,7 @@ case class IndividualVisualizer(spark: SparkSession, singleResultPath: String) e
   implicit def rowEnc = org.apache.spark.sql.Encoders.kryo[Row]
   import spark.implicits._
 
-  val categoryMap = ResultIO.readCategoryMap()
+  val categoryMap:Map[String,List[String]] = null//ResultIO.readSettlementsCategoryMap()
 
   @transient val config = ResultIO.loadConfig(singleResultPath)
   @transient val model = ResultIO.loadKMeansModel(singleResultPath)
@@ -110,7 +110,7 @@ case class IndividualVisualizer(spark: SparkSession, singleResultPath: String) e
     println("Centroid: " + timeSeriesToString(model.clusterCenters(clusterId)))
     println("-----------------------------------------------------------------------------------------------------------------------------------")
     clusteringResult.filter( r => r.getAs[Int](2) == clusterId)
-      .take(10)
+      .take(100)
       .foreach( r => println(r.getString(0) + ", " + timeSeriesToString(r)))
   }
 

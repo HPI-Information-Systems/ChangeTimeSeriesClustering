@@ -47,25 +47,31 @@ object ChangeDBTransformer extends App{
     println("Deleted Lines: " + skipped)
   }
 
+  def fixString(entity: String) = "\"" +  entity.replace("\"","\\\"") + "\""
+
+  def addQuotes(str: String) = "\"" + str + "\""
+
   def transformWikiDataNewlineValues() = {
-    val repairedFile = DataIO.getWikidataRepairedFileWithoutValue()
+    val repairedFile = DataIO.getFullWikidataSparkCompatibleFile()
     val out = DataIO.getBZ2CompressedOutputStream(repairedFile)
-    val format = CSVFormat.DEFAULT.withEscape('\\').withQuoteMode(QuoteMode.ALL)
-    val printer = new CSVPrinter(new OutputStreamWriter(out),format)
+    val readFormat = CSVFormat.DEFAULT.withEscape('\\').withQuoteMode(QuoteMode.ALL)
+    //val printer = new CSVPrinter(new OutputStreamWriter(out),writeFormat)
+    val printer = new PrintWriter(new OutputStreamWriter(out))
     val decompressedFileStream = DataIO.getOriginalFullWikidataFileStream
-    val records = format.parse(decompressedFileStream).iterator()
+    val records = readFormat.parse(decompressedFileStream).iterator()
     var numRow = 1
+    val del = ","
     while(records.hasNext){
       val r = records.next()
+      assert(r.size() == 4)
       val rec = new ChangeRecord(r)
-      val recNew = new ChangeRecord(rec.entity,rec.property,"newVal",rec.timestamp)
       if(numRow % 1000000 == 0){
         println("processed "+ numRow + " change records")
       }
       numRow += 1
 //      println(numRow)
 //      println(rec)
-      printer.printRecord(recNew.entity,recNew.property,recNew.value,recNew.timestampAsString)
+      printer.println(fixString(rec.entity) +del+ fixString(rec.property).replace("\r\n","<newline>").replace("\n","<newline>").take(100000) +del+ "\"newVal\"" +del+ addQuotes(rec.timestampAsString))
     }
     printer.flush()
     printer.close()

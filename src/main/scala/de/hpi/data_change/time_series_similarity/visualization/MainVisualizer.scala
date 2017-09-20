@@ -15,7 +15,7 @@ class MainVisualizer(spark: SparkSession) extends Serializable {
   import spark.implicits._
 
   private val resultPathNormal = "/home/leon/Documents/data/wikidata/results/clusteringResults/"
-  private var resultPathLocal = "/home/leon/Documents/data/wikidata/results/localResults/"
+  private var resultPathLocal = "/home/leon/Documents/researchProjects/wikidata/results/raw/localResults/"
   private val resultPathLogY = "/home/leon/Documents/data/wikidata/results/clusteringResultsLogY/"
   private val settlementsPath = "/home/leon/Documents/data/wikidata/settlements/dump.csv"
   private val entity_yearly_6 = "settlements_config4"
@@ -31,13 +31,20 @@ class MainVisualizer(spark: SparkSession) extends Serializable {
   private val local_entity_yearly_6 = "nullsettlements_config4_withoutLog"
   private val local_entity_monthly_6 = "nullsettlements_config9_withoutLog"
 
+  private val local_property_monthOfYear = "seasonalProperties_Normalized_config"
+
+  private val local_property_monthOfYear_Filtered = "seasonalProperties_Normalized_Filtered_config"
+
 
   var resultPath = resultPathLocal
   val visualizer = new BasicVisualizer(spark, resultPath)
 
   //single run visualization
+  detailedInfo(resultPath,local_property_monthOfYear_Filtered);
+  //detailedInfo(resultPath,local_property_monthOfYear);
 
-  detailedInfo(resultPath,local_entity_monthly_6);
+//  detailedInfo(resultPath,local_entity_monthly_6);
+//  detailedInfo(resultPath,local_entity_monthly_LogY_6);
   //multiple Run Visualization:
   //giveFilterOverview()
   //drawDiagramsLogY
@@ -48,7 +55,7 @@ class MainVisualizer(spark: SparkSession) extends Serializable {
     val singleResultPath = resultPath + File.separator + configName + File.separator
     val individualVisualizer = new IndividualVisualizer(spark,singleResultPath)
     individualVisualizer.drawClusteringCentroids()
-    individualVisualizer.drawClusterCategoryBarchart()
+    //individualVisualizer.drawClusterCategoryBarchart()
     individualVisualizer.printClusterRepresentatives()
   }
 

@@ -58,11 +58,10 @@ class MySQLDatabaseAccessor(sparkSession: SparkSession,username:String,password:
     map
   }
 
-  def findTitles():(mutable.Map[String,mutable.Set[String]],Seq[String]) = {
+  def findTitles(filePath:String):(mutable.Map[String,mutable.Set[String]],Seq[String]) = {
     import sparkSession.implicits._
     val titlesInChangeDB = scala.collection.mutable.Set[String]()
     val agg = TimeSeriesAggregator(sparkSession,null,null,null)
-    val filePath = DataIO.getSettlementsFile.getAbsolutePath
     val titlesFromDB  =agg.getChangeRecordDataSet(filePath).map(_.entity).distinct().collect().toSet
     titlesInChangeDB ++= titlesFromDB
     titlesInChangeDB.take(100).foreach(e => println("this is some test output so spark finishes: " + e))
@@ -82,20 +81,20 @@ class MySQLDatabaseAccessor(sparkSession: SparkSession,username:String,password:
       if(count % 100000==0){
         println("fetched " + count + " rows")
       }
-      val titleInDB = resultSet.getString("page_title")
-//      val titleInDBBytes = resultSet.getBytes("page_title")
-//      val titleInDB = new String(titleInDBBytes,"UTF-8") //we have to it this way since the encoding is not correct, even if we specify UTF8 in the connection
+      //val titleInDB = resultSet.getString("page_title")
+      val titleInDBBytes = resultSet.getBytes("page_title")
+      val titleInDB = new String(titleInDBBytes,"UTF-8") //we have to it this way since the encoding is not correct, even if we specify UTF8 in the connection
 
       val title = titleInDB.replace("_"," ")
-        if(titlesInChangeDB.contains(title)) {
-          val category = resultSet.getString("cl_to")
-          titlesInChangeDB.remove(title)
-          if (allCategories.contains(title)) {
-            allCategories(title) += category
-          } else {
-            allCategories(title) = mutable.Set[String](category)
-          }
+      if(titlesInChangeDB.contains(title) || allCategories.contains(title)) {
+        val category = resultSet.getString("cl_to")
+        titlesInChangeDB.remove(title)
+        if (allCategories.contains(title)) {
+          allCategories(title) += category
+        } else {
+          allCategories(title) = mutable.Set[String](category)
         }
+      }
       count +=1
     }
     println("iterated over " + count + " database entries")

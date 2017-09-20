@@ -1,6 +1,6 @@
 package de.hpi.data_change.time_series_similarity.configuration
 
-import de.hpi.data_change.time_series_similarity.data.MultiDimensionalTimeSeries
+import de.hpi.data_change.time_series_similarity.data.TimeSeries
 
 case class TimeSeriesFilter(params:Map[String,String]) extends Serializable{
 
@@ -8,20 +8,21 @@ case class TimeSeriesFilter(params:Map[String,String]) extends Serializable{
   var maxavg:Double = Double.MaxValue
   var minNumYVals:Double = 0.0
 
-  var filter: (MultiDimensionalTimeSeries => Boolean) = null
+  var filter: (TimeSeries => Boolean) = null
 
   params("name") match {
     case "MaxAverageY" => initAverageYFilter()
     case "MinNonZeryYVals" => initMinNonZeroYFilter()
+    case "none" => filter = (ts:TimeSeries) => true
     case _ => assert(false)
   }
 
-  def avgYFilter(ts: MultiDimensionalTimeSeries):Boolean = {
+  def avgYFilter(ts: TimeSeries):Boolean = {
     val yVals = ts.yValues()
     yVals.sum / yVals.size <= maxavg
   }
 
-  def minNumNonZeroFilter(ts: MultiDimensionalTimeSeries):Boolean = {
+  def minNumNonZeroFilter(ts: TimeSeries):Boolean = {
     ts.numNonZeroYValues >= minNumYVals
   }
 

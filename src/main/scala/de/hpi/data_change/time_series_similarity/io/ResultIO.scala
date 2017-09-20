@@ -12,8 +12,14 @@ class ResultIO {
 }
 object ResultIO{
 
-  def readCategoryMap() = {
-    val in = new ObjectInputStream(new FileInputStream("src/main/resources/results/categoryMap.obj"))
+  def readSettlementsCategoryMap() = {
+    val in = new ObjectInputStream(new FileInputStream(DataIO.getSettlementsCategoryMapFile))
+    val categoryMap = in.readObject().asInstanceOf[mutable.Map[String,mutable.Set[String]]]
+    categoryMap
+  }
+
+  def readFullCategoryMap() = {
+    val in = new ObjectInputStream(new FileInputStream(DataIO.getFullCategoryMapFile))
     val categoryMap = in.readObject().asInstanceOf[mutable.Map[String,mutable.Set[String]]]
     categoryMap
   }
