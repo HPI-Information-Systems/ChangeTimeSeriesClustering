@@ -20,6 +20,7 @@ class TimeGranularityGrouper(minYear:Int, maxYear:Int, padWithZeroesFront:Boolea
       case TimeGranularity.Monthly => toSingleDimensionalMonthlyTimeSeries(key,changeRecords)
       case TimeGranularity.Daily => toSingleDimensionalDailyTimeSeries(key,changeRecords)
       case TimeGranularity.MonthOfYear => toMonthOfYearTimeSeries(key,changeRecords)
+      case TimeGranularity.WeekOfYear => toMonthOfYearTimeSeries(key,changeRecords)
       case _ => println("received: " + granularity);throw new AssertionError("unknown time Granularity specified: " + granularity)
     }
   }

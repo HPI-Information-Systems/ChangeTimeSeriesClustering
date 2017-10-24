@@ -38,6 +38,7 @@ case class TimeSeriesAggregator(spark:SparkSession,timeSeriesFilter:TimeSeriesFi
       case GroupingKey.Entity => toTimeSeries(resAsCR.groupByKey(cr => cr.entity),groupingObject,featureExtractionMethod)
       case GroupingKey.Property => toTimeSeries(resAsCR.groupByKey(cr => cr.property),groupingObject,featureExtractionMethod)
       case GroupingKey.Value_ => toTimeSeries(resAsCR.groupByKey(cr => cr.value),groupingObject,featureExtractionMethod)
+      case GroupingKey.Entity_Property => toTimeSeries(resAsCR.groupByKey(cr => cr.entity + "." + cr.property),groupingObject,featureExtractionMethod)
       case _ => throw new AssertionError("unknown grouping key")
     }
   }
