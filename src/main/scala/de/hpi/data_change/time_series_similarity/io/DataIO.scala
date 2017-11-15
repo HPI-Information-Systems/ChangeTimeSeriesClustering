@@ -11,6 +11,15 @@ class DataIO {
 }
 
 object DataIO{
+  def getIMDBDir() = "/home/leon/Documents/researchProjects/imdb/cleaned/"
+
+
+  def getTempFileStream = {
+    val file = new File("/home/leon/Desktop/malformatted")
+    val fin = new FileInputStream(file)
+    new BufferedReader(new InputStreamReader(fin))
+  }
+
   def getConfigTargetDir(): String = "/home/leon/Documents/researchProjects/wikidata/configs/"
 
   def getHDFSWikidataFilePath(): String = "/users/leon.bornemann/data/20120323-en-updates_new_full_repaired_without_Value.csv"
@@ -19,20 +28,18 @@ object DataIO{
   def processedResultDir() = "/home/leon/Documents/researchProjects/wikidata/results/preProcessed/"
 
   def getOriginalFullWikidataFileStream = {
-    val file = new File("/home/leon/Documents/researchProjects/wikidata/data/20120323-en-updates_new_full.csv.bz2")
+    val file = new File("/home/leon/Documents/researchProjects/wikidata/data/totalChanges.csv")
     val fin = new FileInputStream(file)
-    val bis = new BufferedInputStream(fin)
-    val input = new CompressorStreamFactory().createCompressorInputStream(CompressorStreamFactory.BZIP2,bis)
-    new BufferedReader(new InputStreamReader(input))
+    new BufferedReader(new InputStreamReader(fin))
   }
 
-  def getFullWikidataSparkCompatibleFile() = new File("/home/leon/Documents/researchProjects/wikidata/data/20120323-en-updates_new_full_repaired_without_Value.csv")
+  def getFullWikidataSparkCompatibleFile() = new File("/home/leon/Documents/researchProjects/wikidata/data/totalChangesSparkCompatible.csv")
 
   def getBZ2CompressedOutputStream(f:File) ={
     new CompressorStreamFactory().createCompressorOutputStream(CompressorStreamFactory.BZIP2, new FileOutputStream(f));
   }
 
-  def getSettlementsFile = new File("/home/leon/Documents/researchProjects/wikidata/data/settlements.csv")
+  def getSettlementsFile = new File("/home/leon/Documents/researchProjects/wikidata/data/settlementsNew.csv")
 
   def getSettlementsCategoryMapFile = new File(processedResultDir() + "settlementsCategoryMap.obj")
 

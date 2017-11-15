@@ -13,34 +13,15 @@ import scala.collection.mutable.ListBuffer
 
 class MainVisualizer(spark: SparkSession) extends Serializable {
   import spark.implicits._
-
-  private val resultPathNormal = "/home/leon/Documents/data/wikidata/results/clusteringResults/"
-  private var resultPathLocal = "/home/leon/Documents/researchProjects/wikidata/results/raw/localResults/"
-  private val resultPathLogY = "/home/leon/Documents/data/wikidata/results/clusteringResultsLogY/"
-  private val settlementsPath = "/home/leon/Documents/data/wikidata/settlements/dump.csv"
-  private val entity_yearly_6 = "settlements_config4"
-  private val entity_monthly_6 = "settlements_config9"
-  private val entity_daily_6 = "settlements_config14"
-  private val property_yearly_6 = "settlements_config19"
-  private val property_monthly_6 = "settlements_config24"
-  private val property_daily_6 = "settlements_config29"
-
-  private val local_entity_yearly_LogY_6 = "nullsettlements_config4"
-  private val local_entity_monthly_LogY_6 = "nullsettlements_config9"
-
-  private val local_entity_yearly_6 = "nullsettlements_config4_withoutLog"
-  private val local_entity_monthly_6 = "nullsettlements_config9_withoutLog"
-
-  private val local_property_monthOfYear = "seasonalProperties_Normalized_config"
-
-  private val local_property_monthOfYear_Filtered = "seasonalProperties_Normalized_Filtered_config"
+  val resultPathLocal = "/home/leon/Documents/researchProjects/imdb/localResults/"
+  val configName = "imdb_first_test"
 
 
   var resultPath = resultPathLocal
   val visualizer = new BasicVisualizer(spark, resultPath)
 
   //single run visualization
-  detailedInfo(resultPath,local_property_monthOfYear_Filtered);
+  detailedInfo(resultPath,configName);
   //detailedInfo(resultPath,local_property_monthOfYear);
 
 //  detailedInfo(resultPath,local_entity_monthly_6);
@@ -59,34 +40,9 @@ class MainVisualizer(spark: SparkSession) extends Serializable {
     individualVisualizer.printClusterRepresentatives()
   }
 
-  def drawDiagramsLogY = {
-    resultPath = resultPathLogY
-    //localCentroids
-    drawDiagrams
-  }
-
-  private def drawDiagramsNormal = {
-    resultPath = resultPathNormal
-    //localCentroids
-    drawDiagrams
-  }
 
   //BasicVisualizer(spark, filePath).draw()
 
-  private def drawDiagrams = {
-    drawCentroids("settlements_config2", 0, 0)
-    drawCentroids("settlements_config3", 0, 370)
-    drawCentroids("settlements_config4", 0, 700)
-
-    drawCentroids("settlements_config7", 1000, 0)
-    drawCentroids("settlements_config8", 1000, 370)
-    drawCentroids("settlements_config9", 1000, 700)
-  }
-
-  private def localCentroids = {
-    //drawCentroids("nullsettlements_config9", 0, 0)
-    drawCentroids("nullsettlements_config4", 0, 0)
-  }
 
   private def drawCentroids(configName:String, x:Int, y:Int) = {
     val result = resultPath + File.separator + configName + File.separator

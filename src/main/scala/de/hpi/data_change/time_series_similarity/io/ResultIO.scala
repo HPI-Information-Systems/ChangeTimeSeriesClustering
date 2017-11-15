@@ -30,7 +30,7 @@ object ResultIO{
   }
 
   def loadClusteringResult(spark: SparkSession, filePath: String) = {
-    spark.read.load(filePath + File.separator + "result" + File.separator)
+    spark.read.json(filePath + File.separator + "result" + File.separator)
   }
 
   def loadKMeansModel(filePath: String) = {

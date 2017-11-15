@@ -11,7 +11,7 @@ import org.jfree.data.xy.{XYDataset, XYSeriesCollection}
 import org.jfree.ui.ApplicationFrame
 import org.jfree.ui.RefineryUtilities
 
-class MultiLineChart(title:String, clusteringConfig: ClusteringConfig, collection: XYSeriesCollection, yAxisAsLog:Boolean = false) extends ApplicationFrame(title) {
+class MultiLineChart(collection: XYSeriesCollection, title:String = "Plot Title", yAxisAsLog:Boolean = false) extends ApplicationFrame(title) {
 
   val chart = createChart(collection)
   val chartPanel = new ChartPanel(chart)
@@ -31,7 +31,7 @@ class MultiLineChart(title:String, clusteringConfig: ClusteringConfig, collectio
   }
 
   def buildDetailedTitle(): String = {
-    clusteringConfig.groupingKey.toString + ", " + clusteringConfig.granularity.toString + ", " + clusteringConfig.clusteringAlgorithmParameters("k")
+    "title"
   }
 
 

@@ -47,31 +47,60 @@ object ChangeDBTransformer extends App{
     println("Deleted Lines: " + skipped)
   }
 
-  def fixString(entity: String) = "\"" +  entity.replace("\"","\\\"") + "\""
+  def fixString(string: String) = {
+    "\"" + string.replace("\"", "\\\"")
+        .replace("\r\n", "<newline>")
+        .replace("\n", "<newline>").take(100000) +"\""
+  }
 
   def addQuotes(str: String) = "\"" + str + "\""
 
-  def transformWikiDataNewlineValues() = {
+
+  def transformWikiDataNewlineValuesNew(): Unit ={
     val repairedFile = DataIO.getFullWikidataSparkCompatibleFile()
     val out = DataIO.getBZ2CompressedOutputStream(repairedFile)
-    val readFormat = CSVFormat.DEFAULT.withEscape('\\').withQuoteMode(QuoteMode.ALL)
+    val decompressedFileStream = DataIO.getTempFileStream//DataIO.getOriginalFullWikidataFileStream
+    var line = decompressedFileStream.readLine()
+    while(line!=null){
+
+    }
+  }
+
+  def transformWikiDataNewlineValues() = {
+    val repairedFile = "/home/leon/Documents/researchProjects/wikidata/data/old/old.csv"
+    val out = new FileOutputStream("/home/leon/Documents/researchProjects/wikidata/data/old/oldCleaned.csv")//DataIO.getBZ2CompressedOutputStream(repairedFile)
+    val readFormat = CSVFormat.DEFAULT.withQuoteMode(QuoteMode.ALL).withEscape('\\')
     //val printer = new CSVPrinter(new OutputStreamWriter(out),writeFormat)
     val printer = new PrintWriter(new OutputStreamWriter(out))
-    val decompressedFileStream = DataIO.getOriginalFullWikidataFileStream
-    val records = readFormat.parse(decompressedFileStream).iterator()
-    var numRow = 1
+    val records = readFormat.parse(new FileReader(repairedFile)).iterator()
+    var numRow = 0
     val del = ","
+    var numExceptions = 0
+    val entities = Set("Potsdam","Berlin","Chicago","New_York_City","Buffalo","Paris","London","Stockholm","Rome","Munich","Los_Angeles","Tokyo","Mexico_City","Glasgow","Rio_de_Janiero")
     while(records.hasNext){
-      val r = records.next()
-      assert(r.size() == 4)
-      val rec = new ChangeRecord(r)
-      if(numRow % 1000000 == 0){
-        println("processed "+ numRow + " change records")
-      }
       numRow += 1
-//      println(numRow)
-//      println(rec)
-      printer.println(fixString(rec.entity) +del+ fixString(rec.property).replace("\r\n","<newline>").replace("\n","<newline>").take(100000) +del+ "\"newVal\"" +del+ addQuotes(rec.timestampAsString))
+      try {
+        val r = records.next()
+        assert(r.size() == 4)
+        val rec = new ChangeRecord(r)
+        if (numRow % 1000000 == 0) {
+          println("processed " + numRow + " change records")
+          println("skipped " + numExceptions + " due to bad formatting");
+        }
+        //      println(numRow)
+        //      println(rec)
+        val newEntity = fixString(rec.entity)
+        val newProperty = fixString(rec.property)
+        val newVal = fixString(rec.value)
+        if(entities.contains(rec.entity)) {
+          printer.println(newEntity + del + newProperty + del + newVal + del + addQuotes(rec.timestampAsString))
+        }
+      } catch{
+        case e: Throwable => {
+          numExceptions +=1
+          e.printStackTrace()
+        }
+      }
     }
     printer.flush()
     printer.close()

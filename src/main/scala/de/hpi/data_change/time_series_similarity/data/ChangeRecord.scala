@@ -24,17 +24,22 @@ class ChangeRecord(val entity:String, val property:String,val value:String,val t
       ChangeRecord.transformIfNull(r.getString(ChangeRecord.valueIndex)),
       ChangeRecord.getTimeStamp(r))
   }
+
+
+  override def toString = s"ChangeRecord($entity, $property, $value, $timestamp)"
 }
 
 //for storing indice constants:
 object ChangeRecord{
-
+  //","2009-11-29 00:31:15.000000"
   def getTimeStamp(r: Row): java.time.LocalDateTime = {
     try {
-      LocalDateTime.parse(r.getString(ChangeRecord.datetimeIndex), ChangeRecord.formatter)
+      var datetimestr = r.getString(datetimeIndex)
+      if(!datetimestr.contains(' ')) datetimestr = datetimestr + " 00:00:01.000000"
+      LocalDateTime.parse(datetimestr, ChangeRecord.formatter)
     }
     catch {
-      case e:Throwable => println("huh"); throw e;
+      case e:Throwable => null;
     }
   }
 
@@ -43,6 +48,6 @@ object ChangeRecord{
     if(str==null) "null" else str
   }
 
-  val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.[S][S][S][S][S][S]")
+  val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.[S][S][S][S][S][S]") //TODO: make time optional
   val (entityIndex,propertyIndex,valueIndex,datetimeIndex) = (0,1,2,3)
 }

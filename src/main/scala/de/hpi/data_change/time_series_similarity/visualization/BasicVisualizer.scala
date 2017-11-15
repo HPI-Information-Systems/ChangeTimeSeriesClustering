@@ -108,7 +108,7 @@ case class BasicVisualizer(spark: SparkSession, filePath: String) {
       .map{case (a,i,size) => toXYSeries(a.toArray,i,clusterSizes(i))}
       .foreach( series => collection.addSeries(series))
     assert(model.clusterCenters.size == clusterSizes.keys.size)
-    val chart:MultiLineChart  = new MultiLineChart(configIdentifier,config,collection)
+    val chart:MultiLineChart  = new MultiLineChart(collection)
     chart.draw(x,y)
   }
 

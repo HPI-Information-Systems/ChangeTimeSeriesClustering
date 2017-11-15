@@ -4,6 +4,8 @@ import de.hpi.data_change.time_series_similarity.io.ResultIO
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 
+import scala.collection.mutable
+
 case class IndividualVisualizer(spark: SparkSession, singleResultPath: String) extends Serializable{
 
   implicit def rowEnc = org.apache.spark.sql.Encoders.kryo[Row]
@@ -11,10 +13,8 @@ case class IndividualVisualizer(spark: SparkSession, singleResultPath: String) e
 
   val categoryMap:Map[String,List[String]] = null//ResultIO.readSettlementsCategoryMap()
 
-  @transient val config = ResultIO.loadConfig(singleResultPath)
   @transient val model = ResultIO.loadKMeansModel(singleResultPath)
   @transient val clusteringResult = ResultIO.loadClusteringResult(spark,singleResultPath)
-  val configIdentifier = ResultIO.getConfigIdentifier(singleResultPath)
 
   def getCategories(title: String):List[String] = {
     if (categoryMap.contains(title)) categoryMap(title).toList else List("unknown")
@@ -74,18 +74,17 @@ case class IndividualVisualizer(spark: SparkSession, singleResultPath: String) e
   }
 
   def drawClusteringCentroids(x:Int=0,y:Int=0) = {
-    val grouped = clusteringResult.groupByKey(r => r.getAs[Int](2))
+    val grouped = clusteringResult.groupByKey(r => r.getAs[Long]("assignedCluster"))
     val clusterSizes = grouped.mapGroups{case (cluster,it) => (cluster,it.size)}.collect().toMap
     val collection = new XYSeriesCollection()
     model.clusterCenters
       .zipWithIndex
-      //.filter{case (_,i) => clusterSizes.contains(i)} //TODO: temporary filter because of really weird things happening
-      .map{case (a,i) => (a,i,clusterSizes(i))}
+      .map{case (a,i) => (a,i,if(clusterSizes.contains(i)) clusterSizes(i) else 0)}
       .sortBy( t => t._3)
-      .map{case (a,i,size) => toXYSeries(a.toArray,i,clusterSizes(i))}
+      .map{case (a,i,size) => toXYSeries(a.toArray,i,size)}
       .foreach( series => collection.addSeries(series))
-    assert(model.clusterCenters.size == clusterSizes.keys.size)
-    val chart:MultiLineChart  = new MultiLineChart(configIdentifier,config,collection)
+    //assert(model.clusterCenters.size == clusterSizes.keys.size)
+    val chart:MultiLineChart  = new MultiLineChart(collection)
     chart.draw(x,y)
   }
 
@@ -96,26 +95,26 @@ case class IndividualVisualizer(spark: SparkSession, singleResultPath: String) e
   }
 
   def timeSeriesToString(r: Row): Any = {
-    val vec = r.getAs[org.apache.spark.ml.linalg.Vector](1)
+    val vec = r.getAs[Row]("features").getAs[mutable.WrappedArray[Double]](1)
     timeSeriesToString(vec)
   }
 
-  def timeSeriesToString(vec: org.apache.spark.ml.linalg.Vector) = {
+  def timeSeriesToString(vec: Seq[Double]) = {
     "[" + vec.toArray.map( d => "%.1f".format(d)).mkString(",") + "]"
   }
 
   def printRepresentatives(clusterId: Int) = {
-    val clusterSize = clusteringResult.filter( r => r.getAs[Int](2) == clusterId).count()
+    val clusterSize = clusteringResult.filter( r => r.getAs[Long]("assignedCluster") == clusterId).count()
     println("====================== Cluster Representatives for cluster " + clusterId + " (size:" + clusterSize +")======================")
-    println("Centroid: " + timeSeriesToString(model.clusterCenters(clusterId)))
+    println("Centroid: " + timeSeriesToString(model.clusterCenters(clusterId).toArray))
     println("-----------------------------------------------------------------------------------------------------------------------------------")
-    clusteringResult.filter( r => r.getAs[Int](2) == clusterId)
+    clusteringResult.filter( r => r.getAs[Long]("assignedCluster") == clusterId)
       .take(100)
-      .foreach( r => println(r.getString(0) + ", " + timeSeriesToString(r)))
+      .foreach( r => println(r.getAs[String]("name") + ", " + timeSeriesToString(r)))
   }
 
   def printClusterRepresentatives() = {
-    println("====================== Cluster Representatives for " + configIdentifier + "======================")
+    println("====================== Cluster Representatives ======================")
     model.clusterCenters.zipWithIndex.foreach( t => printRepresentatives(t._2) )
   }
 

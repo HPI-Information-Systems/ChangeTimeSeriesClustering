@@ -23,10 +23,10 @@ case class TimeSeriesAggregator(spark:SparkSession,timeSeriesFilter:TimeSeriesFi
 
   def getChangeRecordDataSet(filePath:String): Dataset[ChangeRecord] ={
     val rawData = spark.read.option("mode", "DROPMALFORMED").csv(filePath)
-    rawData.filter(r => r.getString(3) !=null).map(r =>  {
+    rawData.filter(r => r.getString(3) !=null && r.size == 4).map(r =>  {
       if(r.size != 4){
         println("huh")
-        assert(false)
+        assert(false) //todo remove malformatted
       }
       new ChangeRecord(r)
       }
