@@ -1,9 +1,10 @@
 package de.hpi.data_change.time_series_similarity
 
 import java.io.File
-import java.sql.{Time, Timestamp}
+import java.sql.{DriverManager, Time, Timestamp}
 import java.time.{LocalDateTime, ZoneOffset}
 import java.time.temporal.ChronoUnit
+import java.util.Properties
 
 import de.hpi.data_change.time_series_similarity.ClusteringMain.{isLocalMode, spark, sparkBuilder}
 import de.hpi.data_change.time_series_similarity.configuration.{GroupingKey, TimeGranularity, TimeSeriesFilter}
@@ -14,23 +15,38 @@ import org.apache.spark.ml.clustering.KMeans
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql.types.{DataTypes, StructType}
-import org.apache.spark.sql.{Dataset, Encoder, RowFactory, SparkSession}
+import org.apache.spark.sql._
 
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.ListBuffer
 
-object LocalExplorationMain extends App with Serializable{
+class LocalExplorationMain(filePath:String,configIdentifier:String,spark:SparkSession) extends Serializable{
 
-  var sparkBuilder = SparkSession
-    .builder()
-    .appName("Spark SQL basic example")
-    sparkBuilder = sparkBuilder.master("local[2]")
-  val spark = sparkBuilder.getOrCreate()
+  def main(args: Array[String]): Unit = {
+    val isLocal = args.length==3 && args(2) == "-local"
+    var sparkBuilder = SparkSession
+      .builder()
+      .appName("Clustering")
+    if(isLocal) {
+      sparkBuilder = sparkBuilder.master("local[2]")
+      useDB = true
+    }
+    val spark = sparkBuilder.getOrCreate()
+    val exploration = new LocalExplorationMain(args(0),args(2),spark)
+    exploration.imdb()
+  }
+
+  //constants:
+  val KeySeparator = "||||"
+
+  var useDB = false
 
   implicit def changeRecordEncoder: Encoder[ChangeRecord] = org.apache.spark.sql.Encoders.kryo[ChangeRecord]
   implicit def changeRecordListEncoder: Encoder[List[ChangeRecord]] = org.apache.spark.sql.Encoders.kryo[List[ChangeRecord]]
   implicit def changeRecordTupleListEncoder: Encoder[(String,List[ChangeRecord])] = org.apache.spark.sql.Encoders.kryo[(String,List[ChangeRecord])]
   implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
+  implicit def localDateTimeTupleEncoder: Encoder[(String,LocalDateTime)] = org.apache.spark.sql.Encoders.kryo[(String,LocalDateTime)]
+  implicit def localDateTimeListTupleEncoder: Encoder[(String,List[LocalDateTime])] = org.apache.spark.sql.Encoders.kryo[(String,List[LocalDateTime])]
   implicit def ordered: Ordering[LocalDateTime] = new Ordering[LocalDateTime] {
     def compare(x: LocalDateTime, y: LocalDateTime): Int = x compareTo y
   }
@@ -38,15 +54,13 @@ object LocalExplorationMain extends App with Serializable{
   //implicit val localDateTimeOrdering: Ordering[LocalDateTime] = Ordering.by(_.toEpochSecond(ZoneOffset.UTC))
   import spark.implicits._
   //wikidata()
-
+  val usePrefilteredQuery = false
   val minNonZeryYValueCount = 1
-  val minGroupSize = 50
+  val minGroupSize = 0
   val temporalIntervalInDays = 7
   val numClusters = 10
   val numIterations = 100
   val resultDirectory = "/users/leon.bornemann/results/"
-  val filePath = args(0)
-  val configIdentifier = "imdb_first_test"
 
 //  val resultDirectory = "/home/leon/Documents/researchProjects/imdb/localResults"
 //  val filePath = "/home/leon/Documents/researchProjects/imdb/localTest/"
@@ -54,57 +68,97 @@ object LocalExplorationMain extends App with Serializable{
   val start:java.sql.Timestamp = java.sql.Timestamp.valueOf("2014-02-21 00:00:00") //2014-02-21_Movies_changes
   val end:java.sql.Timestamp = java.sql.Timestamp.valueOf("2017-07-15 00:00:00") //2017-07-14
 
-  imdb()
+  //input query:
+  val querystring = "select * from imdbchanges limit 1000"
+  //database config
+  val databaseURL = "jdbc:postgresql://localhost/changedb"
+  val user = "dummy"
+  val password = "dummy"
+  val driver = "org.postgresql.Driver"
 
-  def toTimeSeries(changeRecords: List[ChangeRecord], aggregationGranularityInDays: Int, earliestTimestamp: Timestamp, latestTimestamp: Timestamp) = {
-    //174 "City Guide" (2011) {Fun for Your Brain (#3.2)}
-    //177 "Circles" (2008) {Tyler (#1.6)}
+  def getArbitraryQueryResult(url:String,query:String) = {
+    spark.sqlContext.read.format("jdbc").
+      option("url", url).
+      option("driver", driver).
+      option("useUnicode", "true").
+      //option("continueBatchOnError","true").
+      option("useSSL", "false").
+      option("user", user).
+      option("password", password).
+      option("dbtable","((" + query + ")) as queryresult").
+      load()
+  }
+
+  def getChangeRecordSetFromDB() = {
+    val df = getArbitraryQueryResult(databaseURL,querystring)
+    getChangeRecordDataSet(df)
+  }
+
+  def toTimeSeries(timestamps: List[LocalDateTime], aggregationGranularityInDays: Int, earliestTimestamp: Timestamp, latestTimestamp: Timestamp) = {
     val start = earliestTimestamp.toLocalDateTime
     val end = latestTimestamp.toLocalDateTime
     //todo: make this more efficient:
-    //val map:scala.collection.mutable.Map[LocalDateTime,Integer] = new TreeMap[LocalDateTime,Integer]()
     var curTime = start;
-    //while(curTime < end){
-
-    //}
     val yValues = ListBuffer[Double]()
-    var allCrs = changeRecords.toList.sortBy(cr => cr.timestamp)
+    var timestampsSorted = timestamps.sorted
     while(curTime.compareTo(end) <0){
       val intervalEnd = curTime.plusDays(aggregationGranularityInDays)
-      val eventsToAdd = allCrs.filter( cr => cr.timestamp.compareTo(intervalEnd) <0)
-      allCrs = allCrs.filter( cr => cr.timestamp.compareTo(intervalEnd) >= 0)
+      val eventsToAdd = timestampsSorted.filter( ts => ts.compareTo(intervalEnd) <0)
+      timestampsSorted = timestampsSorted.filter( ts => ts.compareTo(intervalEnd) >= 0)
       yValues += eventsToAdd.size
       curTime = intervalEnd;
     }
-    assert(allCrs.isEmpty)
+    assert(timestampsSorted.isEmpty)
     yValues
-
-//    val diffInDays = ChronoUnit.DAYS.between(start,allCrs.head.timestamp)
-//    val numZerosToPadFront = diffInDays.toInt / aggregationGranularityInDays
-//    (0 until numZerosToPadFront).foreach(_ => yValues +=0)
-//    var intervalStart = start.plusDays(diffInDays*numZerosToPadFront)
-//    while(!allCrs.isEmpty){
-//      val intervalEnd = intervalStart.plusDays(aggregationGranularityInDays)
-//      val eventsToAdd = allCrs.filter( cr => cr.timestamp.compareTo(intervalEnd) <0)
-//      yValues += eventsToAdd.size
-//      allCrs = allCrs.filter( cr => cr.timestamp.compareTo(intervalEnd) >= 0)
-//      intervalStart = intervalEnd;
-//    }
-//    val numZerosToPadBack = ChronoUnit.DAYS.between(intervalStart,end).toInt / aggregationGranularityInDays
-//    (0 until numZerosToPadBack).foreach(_ => yValues +=0)
-//    yValues
   }
 
-  def imdb() = {
-    var dataset = getChangeRecordDataSet(filePath)
-    //grouping phase:
-    var groupedDataset = dataset.groupByKey(cr => cr.entity + "|" +cr.property )
+  def getFilteredGroups(dataset: Dataset[ChangeRecord]) = {
+    //var dataset = input.filter(cr => cr.property == "Rating.Votes" && cr.entity.contains("\"\"Doctor Who\"\" (1963)"))
+    var groupedDataset = dataset.groupByKey(cr => (cr.entity + "|" + cr.property) )
     //TODO: first filtering phase:
     var filteredGroups = groupedDataset.mapGroups{case (id,crIterator) => (id,crIterator.toList) }
     filteredGroups = filteredGroups.filter( g => g._2.size > minGroupSize)// .filter{case (id,list) => list.size >= minGroupSize}
-    //groupedDataset
+    filteredGroups.map{case (id,list) => {
+      val entity = list.head.entity
+      val timestamps = list.map(cr => cr.timestamp)
+      (entity,timestamps)
+    }}
+  }
+
+  def transformArbitraryDatasetToGroup(dataset: DataFrame) = {
+    dataset.map(r =>{
+      val keys = r.toSeq.slice(0,r.size-1).map( e => e.toString)
+      (keys.mkString(KeySeparator),r.getAs[java.sql.Timestamp](r.size-1).toLocalDateTime)
+    }).groupByKey{case (key,_) => key}
+      .mapGroups{case (key,it) => (key,it.toList.map{case (key,ts) => ts})}
+  }
+
+  def individualFilter(dataset: Dataset[ChangeRecord]): Dataset[ChangeRecord] = {
+    val keys = Set("","")
+    dataset.filter( cr => {
+      cr.property == "Rating.Votes" &&
+      keys.exists(cr.entity.contains(_)) &&
+      cr.entity.contains("{")
+    })
+  }
+
+  def imdb() = {
+    var filteredGroups:Dataset[(String,List[LocalDateTime])] = null
+    if(useDB){
+      if(usePrefilteredQuery){
+        var dataset = getArbitraryQueryResult(databaseURL,querystring)
+        filteredGroups = transformArbitraryDatasetToGroup(dataset)
+      } else {
+        var dataset = getChangeRecordSetFromDB()
+        filteredGroups = getFilteredGroups(dataset)
+      }
+    } else{
+      var dataset = getChangeRecordDataSet(filePath)
+      //individual filter
+      dataset = individualFilter(dataset)
+      filteredGroups = getFilteredGroups(dataset)
+    }
     //create time series:
-    //var timeSeriesDataset = groupedDataset.mapGroups{case (id,it) => TimeSeriesNew(id,toTimeSeries(it.toList,temporalIntervalInDays,start,end),temporalIntervalInDays,start,end)}
     var timeSeriesDataset = filteredGroups.map{case (id,list) => TimeSeriesNew(id,toTimeSeries(list,temporalIntervalInDays,start,end),temporalIntervalInDays,start,end)}
     timeSeriesDataset = timeSeriesDataset.filter( ts => ts !=null)
     //transform time series:
@@ -113,6 +167,7 @@ object LocalExplorationMain extends App with Serializable{
     timeSeriesDataset = timeSeriesDataset.filter(ts => ts.filterByMinNumNonZeroValues(minNonZeryYValueCount))
     //extract features:
     val rdd = timeSeriesDataset.rdd.map(ts => {assert(ts.id !=null);RowFactory.create(ts.id,Vectors.dense(ts.toFeatures()))})
+    rdd.cache()
     val fields = Array(DataTypes.createStructField("name",DataTypes.StringType,false),DataTypes.createStructField("features",VectorType,false))
     val schema = new StructType(fields)
     val finalDf = spark.createDataFrame(rdd,schema)
@@ -128,42 +183,16 @@ object LocalExplorationMain extends App with Serializable{
     println("Starting to save results")
     resultDF.write.json(resultDirectory + configIdentifier + "/result")
     kmeansModel.save(resultDirectory + configIdentifier + "/model")
-
-
-
-
-//    println(dataset.filter( cr => cr.property == "title").count());
-//    println("num entities: " + dataset.map(cr => cr.entity).distinct().count())
-//    println("num properties: " + dataset.map(cr => cr.property).distinct().count())
-//    println("num values: " + dataset.map(cr => cr.value).distinct().count())
-//    println("num change Records: " + dataset.count())
-//    println("change per entity distribution:")
-//    dataset.groupByKey(cr => cr.entity).mapGroups{ case (s,it) => (s,it.size)}
-//        .groupByKey(t => t._2).mapGroups{case (count,it) => (count,it.size)}
-//        .collect().sortBy( t => t._1).foreach(t => println(t._1 + ","+t._2+","))
-//    println("change per property distribution:")
-//    dataset.groupByKey(cr => cr.property).mapGroups{ case (s,it) => (s,it.size)}
-//      .groupByKey(t => t._2).mapGroups{case (count,it) => (count,it.size)}
-//      .collect().sortBy( t => t._1).foreach(t => println(t._1 + ","+t._2+","))
-//    println("change per entity-property distribution:")
-//    dataset.groupByKey(cr => cr.entity + "|" + cr.property).mapGroups{ case (s,it) => (s,it.size)}
-//        .groupByKey(t => t._2).mapGroups{case (count,it) => (count,it.size)}
-//        .collect().sortBy( t => t._1).foreach(t => println(t._1 + ","+t._2+","))
-    //println(dataset.filter( cr => cr.property == "title").count());
-    //spark sort: dataset.sort($"col1".desc)
-    //dataset.take(100).foreach(println(_))
   }
+
+  def getChangeRecordDataSet(rawData: DataFrame) = {
+    rawData.map(r => new ChangeRecord(r))
+  }
+
 
   def getChangeRecordDataSet(filePath:String): Dataset[ChangeRecord] ={
     val rawData = spark.read.option("mode", "DROPMALFORMED").csv(filePath)
-    rawData.filter(r => r.getString(3) !=null && r.size == 4).map(r =>  {
-      if(r.size != 4){
-        println("huh")
-        assert(false) //todo remove malformatted
-      }
-      new ChangeRecord(r)
-    }
-    )
+    getChangeRecordDataSet(rawData)
   }
 
 

@@ -8,7 +8,7 @@ object VisualizationMain extends App{
   var spark:SparkSession = SparkSession
     .builder()
     .appName("Spark SQL basic example")
-    .master("local[2]")
+    .master("local[1]")
     .getOrCreate()
   new MainVisualizer(spark)
 }

@@ -33,13 +33,14 @@ class ChangeRecord(val entity:String, val property:String,val value:String,val t
 object ChangeRecord{
   //","2009-11-29 00:31:15.000000"
   def getTimeStamp(r: Row): java.time.LocalDateTime = {
-    try {
+    val ts = r.get(datetimeIndex)
+    if(ts.isInstanceOf[String]) {
       var datetimestr = r.getString(datetimeIndex)
-      if(!datetimestr.contains(' ')) datetimestr = datetimestr + " 00:00:01.000000"
+      if (!datetimestr.contains(' ')) datetimestr = datetimestr + " 00:00:01.000000"
       LocalDateTime.parse(datetimestr, ChangeRecord.formatter)
-    }
-    catch {
-      case e:Throwable => null;
+    } else{
+      assert(ts.isInstanceOf[java.sql.Timestamp])
+      ts.asInstanceOf[java.sql.Timestamp].toLocalDateTime
     }
   }
 

@@ -12,6 +12,11 @@ class ResultIO {
 }
 object ResultIO{
 
+  def readFilteredGroups(spark: SparkSession, filePath: String) = {
+    spark.read.json(filePath + File.separator + "filteredResult" + File.separator)
+  }
+
+
   def readSettlementsCategoryMap() = {
     val in = new ObjectInputStream(new FileInputStream(DataIO.getSettlementsCategoryMapFile))
     val categoryMap = in.readObject().asInstanceOf[mutable.Map[String,mutable.Set[String]]]

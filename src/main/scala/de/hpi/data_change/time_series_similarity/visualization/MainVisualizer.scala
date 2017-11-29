@@ -13,7 +13,7 @@ import scala.collection.mutable.ListBuffer
 
 class MainVisualizer(spark: SparkSession) extends Serializable {
   import spark.implicits._
-  val resultPathLocal = "/home/leon/Documents/researchProjects/imdb/localResults/"
+  val resultPathLocal = "/home/leon/Documents/researchProjects/imdb/results/"
   val configName = "imdb_first_test"
 
 
@@ -33,11 +33,16 @@ class MainVisualizer(spark: SparkSession) extends Serializable {
   //printOverviewTable()
 
   def detailedInfo(resultPath: String, configName: String) = {
+
     val singleResultPath = resultPath + File.separator + configName + File.separator
     val individualVisualizer = new IndividualVisualizer(spark,singleResultPath)
-    individualVisualizer.drawClusteringCentroids()
-    //individualVisualizer.drawClusterCategoryBarchart()
-    individualVisualizer.printClusterRepresentatives()
+    individualVisualizer.dateEvaluation();
+//    individualVisualizer.serializeToCsv("/home/leon/Documents/researchProjects/imdb/csvResults/imdbFirstTry/members.csv","/home/leon/Documents/researchProjects/imdb/csvResults/imdbFirstTry/membersSimple.csv","/home/leon/Documents/researchProjects/imdb/csvResults/imdbFirstTry/clusterCenters.csv","/home/leon/Documents/researchProjects/imdb/csvResults/imdbFirstTry/clusterCentersTransposed.csv")
+//    individualVisualizer.dateEvaluation();
+//    individualVisualizer.drawClusteringCentroids()
+//
+//    //individualVisualizer.drawClusterCategoryBarchart()
+//    individualVisualizer.printClusterRepresentatives()
   }
 
 

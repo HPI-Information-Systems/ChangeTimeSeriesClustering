@@ -38,6 +38,16 @@ object IMDBExploration extends App with Serializable{
   val start:java.sql.Timestamp = java.sql.Timestamp.valueOf("2014-02-21 00:00:00") //2014-02-21_Movies_changes
   val end:java.sql.Timestamp = java.sql.Timestamp.valueOf("2017-07-15 00:00:00") //2017-07-14
 
+  def simpsonsAnalysis(): Unit ={
+    val members = spark.read.csv("/home/leon/Documents/researchProjects/imdb/csvResults/imdbFirstTry/members.csv")
+    val clusterCenters = spark.read.csv("/home/leon/Documents/researchProjects/imdb/csvResults/imdbFirstTry/clusterCenters.csv")
+    val simpsonMembers = members.filter(r => r.getAs[String]("entity").contains("The Simpsons"))
+
+
+
+  }
+
+
   def readFiltered() = {
     val rawData = spark.read.option("mode", "DROPMALFORMED").csv("/home/leon/Documents/researchProjects/imdb/localResults/spike.csv")
     val filtered = rawData.as[(String,String,String)]
