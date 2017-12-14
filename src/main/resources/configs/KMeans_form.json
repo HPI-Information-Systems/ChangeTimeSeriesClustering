@@ -1,0 +1,24 @@
+{
+  "schema": {
+    "type": "object",
+    "title": "K-Means Parameters",
+    "required": ["k"],
+    "properties": {
+      "k": {
+        "title": "k",
+        "type": "number"
+      },
+      "maxIter": {
+        "title": "Maximum Number of Iterations",
+        "type": "number"
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "number"
+      }
+    }
+  },
+  "form": [
+    "*"
+  ]
+}

@@ -1,0 +1,12 @@
+{ "query":"select * from imdbchanges where entity LIKE '\"Doctor Who\" (1963)%'",
+  "granularity":7,
+  "unit":"Days",
+  "transformation":"None",
+  "featureExtraction": "Raw",
+  "clusteringAlg":"KMeans",
+  "KMeans Parameters":{
+    "k":10,
+    "maxIter":150,
+    "seed":1337
+  }
+}

@@ -95,7 +95,7 @@ object InfoboxHeatmapExample extends App with Serializable{
     val perEntity = dataset.groupByKey(cr => cr.entity).mapGroups{case (prop,it) => (prop,it.size)}.collect().toMap
     val lifespans = dataset.groupByKey(cr => cr.entity +"|"+ cr.property).mapGroups{case(id,it) =>{
       val allVals = it.toList
-      val list = allVals.map( cr => cr.timestamp.toEpochSecond(ZoneOffset.UTC)).sorted
+      val list = allVals.map( cr => cr.timestamp.toLocalDateTime.toEpochSecond(ZoneOffset.UTC)).sorted
       (id,(list.max-list.min))
     }}
     val results = dataset.groupByKey( cr => cr.entity + "|" + cr.property).mapGroups{case (id,it) => {
@@ -146,7 +146,7 @@ object InfoboxHeatmapExample extends App with Serializable{
     val perEntity = dataset.groupByKey(cr => cr.entity).mapGroups{case (prop,it) => (prop,it.size)}.collect().toMap
     val lifespans = dataset.groupByKey(cr => cr.entity +"|"+ cr.property).mapGroups{case(id,it) =>{
       val allVals = it.toList
-      val list = allVals.map( cr => cr.timestamp.toEpochSecond(ZoneOffset.UTC)).sorted
+      val list = allVals.map( cr => cr.timestamp.toLocalDateTime.toEpochSecond(ZoneOffset.UTC)).sorted
       (id,(list.max-list.min))
     }}.collect().toMap
     val results = dataset.groupByKey( cr => cr.entity + "|" + cr.property).mapGroups{case (id,it) => {

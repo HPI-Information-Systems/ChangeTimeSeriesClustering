@@ -1,0 +1,53 @@
+{
+  "schema": {
+    "type": "object",
+    "title": "Time Series Extraction",
+    "required": ["granularity", "unit","transformation","featureExtraction","clusteringAlg"],
+    "properties": {
+      "granularity": {
+        "title": "granularity",
+        "type": "number"
+      },
+      "unit": {
+        "title": "Time Unit",
+        "type": "string",
+        "enum": [
+          "Seconds",
+          "Minutes",
+          "Hours",
+          "Days",
+          "Weeks",
+          "Months"
+        ]
+      },
+      "transformation" : {
+        "title": "Time series Transformation",
+        "type":"string",
+        "enum": [
+          "None",
+          "Normalize",
+          "log",
+          "sqrt"
+        ]
+      },
+      "featureExtraction:":{
+        "title": "Feature Extraction Method from Time Series",
+        "type":"string",
+        "enum": [
+          "Raw",
+          "Statistics"
+        ]
+      },
+      "clusteringAlg":{
+        "title": "Clustering Algorithm",
+        "type":"string",
+        "enum": [
+          "KMeans"
+        ]
+      }
+    }
+  },
+  "form": [
+    "*"
+  ]
+}

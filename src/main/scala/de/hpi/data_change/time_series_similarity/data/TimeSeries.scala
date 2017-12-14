@@ -1,46 +1,34 @@
 package de.hpi.data_change.time_series_similarity.data
 
-import java.sql.Timestamp
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
-import scala.collection.Map
+import scala.collection.mutable.ListBuffer
 
-case class TimeSeries(name:String, values:Seq[Double], timeAxis:Seq[Timestamp]) {
+case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUnit:String, begin:java.sql.Timestamp) {
 
-  //TODO: assert timeAxis sorted
-  def normalize():TimeSeries = {
-    val max = values.max
-    val mappedData = values.map(y => y/max)
-    TimeSeries(name,mappedData,timeAxis)
+  def transform(method:String): TimeSeries ={
+    method.toLowerCase.trim match {
+        case "none" => this
+        case "normalize" => {
+          val max = yValues.max
+          TimeSeries(id,yValues.map(y => y /max),step,stepUnit,begin)
+        }
+        //TODO: if we want to do that we need to find a way to represent NaN (?) in KMeans -> check if this works case "removestartingzeros" =>
+        case "log" => TimeSeries(id,yValues.map(y => Math.log(y)),step,stepUnit,begin)
+        case "sqrt" => TimeSeries(id,yValues.map(y => Math.sqrt(y)),step,stepUnit,begin)
+        case _  => throw new AssertionError("unknown time series transformation method")
+      }
   }
 
-  def yValues() = timeSeries
-
-  def getClusteringFeatures() = timeSeries
-
-  val timeSeries: Array[Double] = values.toArray
-
-  val numNonZeroYValues: Int = timeSeries.count(d => d != 0)
-
-  def safeToLog(y: Double): Double = if(y >1 ) Math.log(y) else y
-
-  def yAsLog() = {
-    val mappedData = values.map(y => safeToLog(y))
-    TimeSeries(name,mappedData,timeAxis)
-  }
-
-  def manhattenDistance(other:TimeSeries):Double = {
-    assert(dims()==other.dims())
-    val otherTimeSeries = other.timeSeries
-    var dist = 0.0
-    for( i <- 0 until dims()){
-      dist += Math.abs(other.timeSeries(i) - timeSeries(i))
+  def featureExtraction(method:String):Array[Double] = {
+    method.toLowerCase.trim match {
+      case "raw" => yValues.toArray
+      case "statistics" => Array(yValues.min,yValues.max,yValues.sum/yValues.size)
+      case _ => throw new AssertionError("unknown time series feature extraction method")
     }
-    dist
   }
 
-  def dims() = timeAxis.size
+  def filter(): Boolean = {true}
 
-  override def toString: String = {
-    name + "(numTimePoints: " + timeSeries.length + ")"
-  }
 }

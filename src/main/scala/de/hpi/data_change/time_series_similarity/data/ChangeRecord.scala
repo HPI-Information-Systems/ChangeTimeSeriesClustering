@@ -1,20 +1,19 @@
 package de.hpi.data_change.time_series_similarity.data
 
+import java.sql.Timestamp
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import java.time.format.{DateTimeFormatter, DateTimeParseException}
 
 import org.apache.commons.csv.CSVRecord
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{Encoder, Row}
 
-class ChangeRecord(val entity:String, val property:String,val value:String,val timestamp:LocalDateTime) {
-
-  def timestampAsString: String = ChangeRecord.formatter.format(timestamp)
+case class ChangeRecord(val entity:String, val property:String,val value:String,val timestamp:Timestamp) {
 
   def this(r:CSVRecord){
     this(ChangeRecord.transformIfNull(r.get(ChangeRecord.entityIndex)),
       ChangeRecord.transformIfNull(r.get(ChangeRecord.propertyIndex)),
       ChangeRecord.transformIfNull(r.get(ChangeRecord.valueIndex)),
-      LocalDateTime.parse(r.get(ChangeRecord.datetimeIndex),ChangeRecord.formatter))
+      Timestamp.valueOf(LocalDateTime.parse(r.get(ChangeRecord.datetimeIndex),ChangeRecord.formatter)))
   }
 
 
@@ -32,15 +31,30 @@ class ChangeRecord(val entity:String, val property:String,val value:String,val t
 //for storing indice constants:
 object ChangeRecord{
   //","2009-11-29 00:31:15.000000"
-  def getTimeStamp(r: Row): java.time.LocalDateTime = {
+  def getTimeStamp(r: Row): Timestamp = {
     val ts = r.get(datetimeIndex)
     if(ts.isInstanceOf[String]) {
       var datetimestr = r.getString(datetimeIndex)
-      if (!datetimestr.contains(' ')) datetimestr = datetimestr + " 00:00:01.000000"
-      LocalDateTime.parse(datetimestr, ChangeRecord.formatter)
+      if(datetimestr.contains("T")) {
+        val toks = datetimestr.split("T")
+        val date = toks(0)
+        val time = toks(1).substring(0,toks(1).indexOf("+"))
+        Timestamp.valueOf(date + " " + time)
+      } else {
+        if (!datetimestr.contains(' ')) datetimestr = datetimestr + " 00:00:01.000000"
+        if (datetimestr.contains("\n")) datetimestr = datetimestr.replace("\n", "")
+        try {
+          Timestamp.valueOf(LocalDateTime.parse(datetimestr, ChangeRecord.formatter))
+        } catch {
+          case _ => {
+            println("damn")
+            throw new AssertionError("asd")
+          }
+        }
+      }
     } else{
       assert(ts.isInstanceOf[java.sql.Timestamp])
-      ts.asInstanceOf[java.sql.Timestamp].toLocalDateTime
+      ts.asInstanceOf[java.sql.Timestamp]
     }
   }
 

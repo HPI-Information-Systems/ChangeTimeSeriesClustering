@@ -1,4 +1,4 @@
-import de.hpi.data_change.time_series_similarity.LocalExplorationMain
+import de.hpi.data_change.time_series_similarity.Clustering
 import org.apache.spark.sql.SparkSession
 import org.scalatest.FlatSpec
 
@@ -7,7 +7,7 @@ class GroupFromDatabaseReadTest extends FlatSpec {
   val spark = SparkSession.builder().appName("Unit Test").master("local[2]").getOrCreate()
 
   "Query to database" should "return the correct results" in {
-    val clusterer = new LocalExplorationMain("","",spark)
+    val clusterer = new Clustering("","",spark)
     //3 keys:
     var querystring = "select * from test_3_keys"
     //database config
@@ -27,7 +27,7 @@ class GroupFromDatabaseReadTest extends FlatSpec {
   def toRegex(s: String): String = s.replace("|","\\|")
 
   "Grouping by arbitrary number of keys" should "interpret the first n-1 attributes as keys, the last one as timestamp" in {
-    val clusterer = new LocalExplorationMain("","",spark)
+    val clusterer = new Clustering("","",spark)
     //3 keys:
     var querystring = "select * from test_3_keys"
     //database config
@@ -35,12 +35,12 @@ class GroupFromDatabaseReadTest extends FlatSpec {
     var res = clusterer.getArbitraryQueryResult(databaseURL,querystring)
     val groups = clusterer.transformArbitraryDatasetToGroup(res).collect().toMap
     assert(groups.keySet.size == 5)
-    assert(groups.keySet.forall( s => s.split(toRegex(clusterer.KeySeparator)).size == 3))
-    assert(groups(List("a1","b1","c1").mkString(clusterer.KeySeparator)).size == 3)
-    assert(groups(List("a2","b2","c2").mkString(clusterer.KeySeparator)).size == 2)
-    assert(groups(List("a2","b2","c1").mkString(clusterer.KeySeparator)).size == 1)
-    assert(groups(List("a2","b1","c2").mkString(clusterer.KeySeparator)).size == 1)
-    assert(groups(List("a1","b2","c2").mkString(clusterer.KeySeparator)).size == 1)
+    assert(groups.keySet.forall( s => s.size == 3))
+    assert(groups(List("a1","b1","c1")).size == 3)
+    assert(groups(List("a2","b2","c2")).size == 2)
+    assert(groups(List("a2","b2","c1")).size == 1)
+    assert(groups(List("a2","b1","c2")).size == 1)
+    assert(groups(List("a1","b2","c2")).size == 1)
   }
 
 
