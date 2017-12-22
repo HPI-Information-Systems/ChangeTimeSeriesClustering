@@ -8,6 +8,7 @@ import java.util.Properties
 
 import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, TimeSeries}
 import de.hpi.data_change.time_series_similarity.io.DataIO
+import de.hpi.data_change.time_series_similarity.visualization.CSVSerializer
 import org.apache.spark.ml.clustering.KMeans
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
@@ -35,7 +36,7 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   //Parameters are initilaized with default values
   var aggregationGranularity = 7
   var aggregationTimeUnit = "DAYS"
-  var transformation = "None"
+  var transformation:List[String] = List() //empty list: "None"
   var featureExtraction = "raw"
   var clusteringAlg = "KMeans"
   //clustering features settable via config
@@ -97,7 +98,8 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     aggregationGranularity = config.get("granularity").getIntValue
     aggregationTimeUnit =config.get("unit").getTextValue
     assert ( ChronoUnit.values().exists(s => s.toString == aggregationTimeUnit))
-    transformation = config.get("transformation").getTextValue
+    val transformationString = (config.get("transformation").getTextValue) //TODO: expect a list here
+    transformation = List(transformationString)
     featureExtraction = config.get("featureExtraction").getTextValue
     clusteringAlg = config.get("clusteringAlg").getTextValue
     if(clusteringAlg == "KMeans" || clusteringAlg == "BisectingKMeans"){
@@ -269,13 +271,13 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       .setPredictionCol("assignedCluster")
     val kmeansModel = clusteringAlg.fit(finalDf)
 
-    val clusteringAlg2 = new BisectingKMeans()
+    /*val clusteringAlg2 = new BisectingKMeans()
       .setFeaturesCol("features")
       .setK(numClusters)
       .setMaxIter(numIterations)
       .setSeed(seed)
       .setPredictionCol("assignedCluster")
-    val hierarchicalModel = clusteringAlg2.fit(finalDf)
+    val hierarchicalModel = clusteringAlg2.fit(finalDf)*/
     //hierarchicalModel.
 
     val resultDF = kmeansModel.transform(finalDf)
@@ -289,6 +291,9 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     }
     resultDF.write.json(resultDirectory + configIdentifier + "/result")
     kmeansModel.save(resultDirectory + configIdentifier + "/model")
+    val csvResultPath = resultDirectory + configIdentifier + "/csvResults/"
+    new File(csvResultPath).mkdirs()
+    new CSVSerializer(spark, resultDirectory + configIdentifier,csvResultPath).addGroundTruth().serializeToCsv()
   }
 
   def getChangeRecordDataSet(rawData: DataFrame) = {

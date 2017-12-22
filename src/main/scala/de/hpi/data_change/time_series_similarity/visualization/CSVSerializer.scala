@@ -8,11 +8,13 @@ import de.hpi.data_change.time_series_similarity.Clustering
 import de.hpi.data_change.time_series_similarity.data.ChangeRecord
 import org.apache.spark.ml.clustering.KMeansModel
 import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{ArrayType, StringType}
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 
 import scala.collection.mutable
+import scala.util.Random
 
 case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResultPath:String) extends Serializable{
 
@@ -34,49 +36,8 @@ case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResult
     //clusteringResult.withColumn("key",$"name".apply(0))
     val changerecords = clusteringResult.as("result")
     val joined = templates.join(changerecords,$"name".apply(0) === $"template.entity")
-    val actual = Set("infobox settlement",
-      "infobox album",
-      "infobox person",
-      "infobox football biography",
-      "infobox musical artist",
-      "infobox film",
-      "infobox single",
-      "infobox actor",
-      "infobox french commune",
-      "infobox company",
-      "infobox football biography 2",
-      "infobox book",
-      "infobox television",
-      "infobox military person",
-      "infobox nrhp",
-      "infobox school",
-      "infobox vg",
-      "infobox officeholder",
-      "infobox uk place",
-      "infobox commune de france",
-      "infobox radio station",
-      "infobox road",
-      "infobox mlb player",
-      "infobox television episode",
-      "infobox indian jurisdiction",
-      "infobox_nrhp",
-      "infobox_company",
-      "infobox writer",
-      "infobox university",
-      "infobox city",
-      "infobox military unit",
-      "infobox german location",
-      "infobox mountain",
-      "infobox military conflict",
-      "infobox scientist",
-      "infobox airport",
-      "infobox ice hockey player",
-      "infobox_film",
-      "infobox cvg",
-      "infobox nfl player",
-      "infobox football club",
-      "infobox station",
-      "infobox software")
+    val actualString = " infobox settlement\n infobox album\n infobox person\n infobox football biography\n infobox musical artist\n infobox film\n infobox single\n infobox company\n infobox french commune\n infobox nrhp\n infobox book\n infobox television\n infobox military person\n infobox video game\n infobox school\n infobox officeholder\n infobox uk place\n infobox baseball biography\n infobox radio station\n infobox road\n infobox television episode\n infobox indian jurisdiction\n infobox writer\n infobox university\n infobox military unit\n infobox german location\n infobox mountain\n infobox military conflict\n infobox scientist\n infobox airport\n infobox ice hockey player\n infobox cvg\n infobox nfl biography\n infobox football club"
+    val actual = actualString.split("\n").map(s => s.trim).toSet
     println("done")
     /*val withGroundTruth = joined.groupByKey(r => r.getString(0)).mapGroups{case (entity,rIt) =>
       val list = rIt.toList
@@ -168,9 +129,43 @@ case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResult
     vector.toArray.zipWithIndex.map{case (y,x) => (id,assignedCluster,trueCluster,x,y)}
   }
 
+
+  def serializeWithDublicatesRemoved() = {
+    val personList = List("infobox musical artist","infobox military person","infobox officeholder","infobox writer","infobox scientist")
+    val settlementList = List("infobox french commune","infobox german location")
+    val data = spark.read.option("header","true").csv(csvResultPath + "members.csv")
+    val schema = data.schema
+    implicit def rowEncoder: Encoder[Row] = RowEncoder(schema)
+    val rand = new Random()
+    val res = data.groupByKey( r => r.getString(0)).mapGroups{ case (id,group) =>
+      val list = group.toList
+      val templates = list.map( r => r.getString(2))
+      var toReturn:Seq[Any] = null
+      if(templates.size == 1){
+        toReturn = list.head.toSeq
+      } else if(templates.size == 2){
+        if(templates.contains("infobox person") && templates.toSet.intersect(personList.toSet).size!=0){
+          toReturn = list((templates.indexOf("infobox person")+1) %2).toSeq
+        } else if(templates.contains("infobox settlement") && templates.toSet.intersect(settlementList.toSet).size!=0){
+          toReturn = list((templates.indexOf("infobox settlement")+1) %2).toSeq
+        } else{
+          toReturn = list(rand.nextInt(list.size)).toSeq
+        }
+      } else {
+        toReturn = list(rand.nextInt(list.size)).toSeq
+      }
+      toReturn.updated(0,"\""+toReturn(0)+"\"").mkString(",")
+
+    }
+    val writer = new PrintWriter(new FileWriter(csvResultPath + "members_cleaned.csv"))
+    writer.println(data.columns.mkString(","))
+    res.collect().foreach(writer.println(_))
+    writer.close()
+  }
+
   def serializeToCsv(): Unit ={
     var pr = new PrintWriter(new FileWriter(csvResultPath + "/members.csv"))
-    pr.print("\"id\",assignedCluster","trueCluster")//pr.print("\"id\",\"entity\",\"property\",assignedCluster")
+    pr.print("id,assignedCluster,trueCluster")//pr.print("\"id\",\"entity\",\"property\",assignedCluster")
     for(i <- 0 until model.clusterCenters(0).size){
       pr.print(",val_" + i);
     }
@@ -179,6 +174,8 @@ case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResult
     val a = clusteringResult.map( r => toLineString(r)).collect()
     a.foreach(pr.println(_))
     pr.close()
+    //second variant: remove dublicates:
+    serializeWithDublicatesRemoved()
     //second variant:
     //clusteringResult.flatMap(r => toFlattenedTuples(r)).coalesce(1).write.option("escape","\"").csv(csvResultPath + "/membersTransposed.csv")
     //serialize Center
