@@ -3,6 +3,7 @@ package de.hpi.data_change.time_series_similarity.data
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUnit:String, begin:java.sql.Timestamp) {
@@ -29,6 +30,30 @@ case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUni
     }
   }
 
+  def pointDist(d: Double, d1: Double) = Math.pow(d-d1,2) //TODO - wirklich quadrieren?
+
+  def dtwDistance(other: TimeSeries): (Double,(Int,Int)) ={
+    val A = yValues
+    val B = other.yValues
+    val S = A.size
+    val T = B.size
+    val m:mutable.Seq[mutable.Seq[(Double,(Int,Int))]] = mutable.ListBuffer.fill(S)(mutable.ListBuffer.fill(T)(0.0,(-1,-1)))
+    m(0)(0) = (pointDist(A(0),B(0)),(0,0))
+    for(i <- 1 until S){
+      m(i)(0) = (/*m(i - 1)(0)._1 +*/ pointDist(A(i), B(0)),(i - 1, 0))
+    }
+    for(j <- 1 until T){
+      m(0)(j) = (/*m(0)(j-1)._1 +*/ pointDist(A(0),B(j)),(0,j-1))
+    }
+    (1 until S).foreach(i => {
+      (1 until T).foreach( j => {
+        val minimum = List( m(i-1)(j),m(i)(j-1),m(i-1)(j-1)).minBy( t => t._1)
+        m(i)(j) = (minimum._1 + pointDist(A(i),B(j)),minimum._2)
+      })
+    })
+    m(S-1)(T-1)
+  }
+
   def removeLeadingZeros(): TimeSeries = {
     val sliceAfter = yValues.slice(yValues.indexWhere(y => y>0),yValues.size)
     val zeroSlice = List.fill(yValues.size-sliceAfter.size)(0.0)
@@ -49,8 +74,9 @@ case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUni
   def log(): TimeSeries = TimeSeries(id,yValues.map(y => Math.log(y+1)),step,stepUnit,begin)
 
   def normalize(): TimeSeries ={
-      val max = yValues.max
-      TimeSeries(id,yValues.map(y => y /max),step,stepUnit,begin)
+      val mean = yValues.sum/yValues.size
+      val std = Math.sqrt(yValues.map( y => Math.pow(y-mean,2)).sum/yValues.size)
+      TimeSeries(id,yValues.map(y => (y -mean)/std),step,stepUnit,begin)
   }
 
   def featureExtraction(method:String):Array[Double] = {

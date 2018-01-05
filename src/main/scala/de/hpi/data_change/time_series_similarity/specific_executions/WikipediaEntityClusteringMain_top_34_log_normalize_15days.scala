@@ -1,19 +1,13 @@
 package de.hpi.data_change.time_series_similarity.specific_executions
 
-import java.sql.Timestamp
-import java.time.LocalDateTime
+import java.io.File
 
 import de.hpi.data_change.time_series_similarity.Clustering
-import de.hpi.data_change.time_series_similarity.Main.args
-import de.hpi.data_change.time_series_similarity.data.ChangeRecord
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.{max, min}
+import de.hpi.data_change.time_series_similarity.specific_executions.WikipediaEntityClusteringMain_top_34_log_normalize_30days.{args, spark}
+import de.hpi.data_change.time_series_similarity.visualization.CSVSerializer
+import org.apache.spark.sql.SparkSession
 
-import scala.util.Random
-
-object WikipediaEntityClusteringMain_Basic extends App with Serializable{
+object WikipediaEntityClusteringMain_top_34_log_normalize_15days extends App with Serializable{
   val isLocal = args.length==4 && args(3) == "-local"
   var sparkBuilder = SparkSession
     .builder()
@@ -23,18 +17,21 @@ object WikipediaEntityClusteringMain_Basic extends App with Serializable{
     sparkBuilder = sparkBuilder.master("local[2]")
   }
   val spark = sparkBuilder.getOrCreate()
-  import spark.implicits._
   val clusterer = new Clustering(args(1),args(2),spark)
   clusterer.setFileAsDataSource(args(0))
   //fixed params
   clusterer.setGrouper(cr => Seq(cr.entity))
-  clusterer.transformation = List("normalize")
+  clusterer.transformation = List("log","normalize")
   clusterer.numClusters = 34
   clusterer.setTimeBorders(java.sql.Timestamp.valueOf("2001-01-18 00:00:01.0"),java.sql.Timestamp.valueOf("2017-08-02 00:00:01.0"))
   //variable params:
   clusterer.aggregationTimeUnit = "DAYS"
-  clusterer.aggregationGranularity = 60
+  clusterer.aggregationGranularity = 15
   clusterer.seed = 13
   clusterer.minGroupSize = 50
-  clusterer.clustering()
+  //clusterer.clustering()
+  val csvResultPath = args(1) + args(2) + "/csvResults/"
+  new File(csvResultPath).mkdirs()
+  new CSVSerializer(spark, args(1) + args(2),csvResultPath).addGroundTruth().serializeToCsv()
+
 }

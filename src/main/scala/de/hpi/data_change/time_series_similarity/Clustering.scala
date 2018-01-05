@@ -1,6 +1,6 @@
 package de.hpi.data_change.time_series_similarity
 
-import java.io.File
+import java.io.{File, PrintWriter}
 import java.sql.{DriverManager, Time, Timestamp}
 import java.time.{LocalDateTime, ZoneOffset}
 import java.time.temporal.ChronoUnit
@@ -9,6 +9,7 @@ import java.util.Properties
 import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, TimeSeries}
 import de.hpi.data_change.time_series_similarity.io.DataIO
 import de.hpi.data_change.time_series_similarity.visualization.CSVSerializer
+import dmlab.main.{FloatPoint, FunctionSet, MainDriver}
 import org.apache.spark.ml.clustering.KMeans
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
@@ -18,6 +19,7 @@ import org.apache.spark.sql._
 import org.codehaus.jackson.JsonNode
 import org.json4s.JsonAST.JObject
 import org.json4s.jackson.Json
+import org.apache.spark.sql.functions.udf
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -39,6 +41,7 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   var transformation:List[String] = List() //empty list: "None"
   var featureExtraction = "raw"
   var clusteringAlg = "KMeans"
+  var distanceMeasure = "Euclidean"
   //clustering features settable via config
   var numClusters = 10
   var numIterations = 100
@@ -70,6 +73,10 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   var start:java.sql.Timestamp = java.sql.Timestamp.valueOf("2014-02-21 00:00:00") //2014-02-21_Movies_changes
   var end:java.sql.Timestamp = java.sql.Timestamp.valueOf("2017-07-15 00:00:00") //2017-07-14
   //------------------------------------------- End Dataset Specific Parameters ----------------------------------------------------------
+
+  def medoidAssigner(medoidList: List[FloatPoint]) = udf(
+    (r: Row) => medoidList.map( medoid => FunctionSet.distance(toFloatPoint(r),medoid)).zipWithIndex.min._2
+  )
 
   def setFileAsDataSource(filePath:String): Unit = {
     this.filePath = filePath
@@ -107,6 +114,10 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       numClusters = config.get(subElementName + " Parameters").get("k").getIntValue
       numIterations = config.get(subElementName + " Parameters").get("maxIter").getIntValue
       seed = config.get(subElementName + " Parameters").get("seed").getIntValue
+    } else if(clusteringAlg == "PAMAE"){
+      val subElementName = clusteringAlg
+      numClusters = config.get(subElementName + " Parameters").get("k").getIntValue
+      distanceMeasure = "DTW"
     }
   }
 
@@ -226,6 +237,18 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
 
   def noInputSet(): Boolean = filePath == null && querystring == null
 
+  def toFloatPoint(r: Row): FloatPoint = {
+    val vec = r.getAs[org.apache.spark.ml.linalg.Vector]("features");
+    val fp = new FloatPoint(vec.size,-1)
+    fp.setvalues(vec.toArray.map(d => d.toFloat))
+    fp
+  }
+
+  def transformToJavaRDD(finalDf: DataFrame): _root_.org.apache.spark.api.java.JavaRDD[_root_.dmlab.main.FloatPoint] = {
+    val a = finalDf.toJavaRDD.rdd.map(r => toFloatPoint(r)).toJavaRDD()
+    a
+  }
+
   def clustering() = {
     if(noInputSet()){
       throw new AssertionError("Either file input or database input must be specified")
@@ -263,34 +286,50 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     val schema = new StructType(fields)
     val finalDf = spark.createDataFrame(rdd,schema)
     //Clustering:
-    val clusteringAlg = new KMeans()
-      .setFeaturesCol("features")
-      .setK(numClusters)
-      .setMaxIter(numIterations)
-      .setSeed(seed)
-      .setPredictionCol("assignedCluster")
-    val kmeansModel = clusteringAlg.fit(finalDf)
+    var resultDF:Dataset[Row] = null
+    if(clusteringAlg == "KMeans") {
+      val clusteringAlg = new KMeans()
+        .setFeaturesCol("features")
+        .setK(numClusters)
+        .setMaxIter(numIterations)
+        .setSeed(seed)
+        .setPredictionCol("assignedCluster")
+      val kmeansModel = clusteringAlg.fit(finalDf)
 
-    /*val clusteringAlg2 = new BisectingKMeans()
+      /*val clusteringAlg2 = new BisectingKMeans()
       .setFeaturesCol("features")
       .setK(numClusters)
       .setMaxIter(numIterations)
       .setSeed(seed)
       .setPredictionCol("assignedCluster")
     val hierarchicalModel = clusteringAlg2.fit(finalDf)*/
-    //hierarchicalModel.
+      //hierarchicalModel.
 
-    val resultDF = kmeansModel.transform(finalDf)
-    println("Cost is: " + kmeansModel.computeCost(finalDf))
-    println("Starting to save results")
+      resultDF = kmeansModel.transform(finalDf)
+      println("Cost is: " + kmeansModel.computeCost(finalDf))
+      println("Starting to save results")
+      kmeansModel.save(resultDirectory + configIdentifier + "/model")
+    } else if (clusteringAlg == "PAMAE"){
+      val numOfSampledObjects = 100;
+      val numOfSamples = 40
+      val numOfCores = 2
+      val numOfIterations = 1
+      val medoids = scala.collection.JavaConversions.asScalaBuffer(
+        MainDriver.executePAMAE(transformToJavaRDD(finalDf), numClusters, numOfSampledObjects, 10, numOfCores, numOfIterations, spark.sparkContext)
+      ).toList
+      resultDF = finalDf.withColumn("assignedCluster",medoidAssigner(medoids)($"features"))
+      val filename = "KMedoidCenters.csv"
+      val pr = new PrintWriter(new File(resultDirectory + configIdentifier + filename))
+      medoids.map(fp => fp.getValues.mkString(",")).foreach(println(_))
+    } else{
+      throw new AssertionError("unknown clustering algorithm")
+    }
     if(useDB){
       writeToDB(resultDF)
       //TODO: add column to database with cluster id
       //TODO: create database containing the cluster centers
-
     }
     resultDF.write.json(resultDirectory + configIdentifier + "/result")
-    kmeansModel.save(resultDirectory + configIdentifier + "/model")
     val csvResultPath = resultDirectory + configIdentifier + "/csvResults/"
     new File(csvResultPath).mkdirs()
     new CSVSerializer(spark, resultDirectory + configIdentifier,csvResultPath).addGroundTruth().serializeToCsv()
