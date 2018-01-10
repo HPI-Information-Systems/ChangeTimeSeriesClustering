@@ -22,6 +22,7 @@ object InfoboxHeatmapExample extends App with Serializable{
 
   implicit val localDateTimeOrdering: Ordering[LocalDateTime] = Ordering.by(_.toEpochSecond(ZoneOffset.UTC))
   import spark.implicits._
+  implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
 
   imdb(args(0),args(1))
 
@@ -29,6 +30,9 @@ object InfoboxHeatmapExample extends App with Serializable{
     val cities = List("Berlin","Chicago","Rome","Stockholm","Tokyo","Cape Town","Istanbul","London","Potsdam")
     var dataset = getChangeRecordDataSet(inPath)
       .filter( cr => cities.contains(cr.entity))
+    val vals = dataset.map(cr => cr.timestamp.toLocalDateTime).collect()
+    println(vals.min)
+    println(vals.max)
     val aggregated = dataset.groupByKey( cr => (cr.entity,cr.property))
       .mapGroups{case ((entity,prop),it) => (entity,prop,it.size)}
           .groupByKey( triple => triple._2)

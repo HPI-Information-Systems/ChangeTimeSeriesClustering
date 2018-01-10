@@ -14,94 +14,15 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{ArrayType, StringType}
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.util.Random
 
-case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResultPath:String) extends Serializable{
+case class CSVSerializer(spark: SparkSession, resultPath: String, clusterCenters:Seq[Array[Double]],clusteringResult:DataFrame) extends Serializable{
 
 
-  implicit def rowEnc = org.apache.spark.sql.Encoders.kryo[Row]
-  implicit def lolEnc = org.apache.spark.sql.Encoders.kryo[Seq[String]]
+  //implicit def lolEnc = org.apache.spark.sql.Encoders.kryo[Seq[String]]
   //implicit def rowEnc2 = org.apache.spark.sql.Encoders.kryo[(Long,Row,Seq[String],String)]
   import spark.implicits._
-
-  val categoryMap:Map[String,List[String]] = null//ResultIO.readSettlementsCategoryMap()
-
-  @transient val model = KMeansModel.load(sparkResultPath + "/model")
-
-
-  def loadClusterCenters() = {
-    val conf = spark.sparkContext.hadoopConfiguration
-    val fs = org.apache.hadoop.fs.FileSystem.get(conf)
-    val wasKMeans = fs.exists(new org.apache.hadoop.fs.Path(sparkResultPath + "/model"))
-    if(wasKMeans){
-      KMeansModel.load(sparkResultPath + "/model").clusterCenters
-    } else{
-      val br = new BufferedReader(new FileReader(sparkResultPath + "KMedoidCenters.csv"))
-      var line = br.readLine()
-      var medoids:mutable.ListBuffer[org.apache.spark.ml.linalg.Vector] = mutable.ListBuffer()
-      while(line!=null){
-        medoids += Vectors.dense(line.split(",").map(_.toDouble))
-      }
-      medoids.toArray
-    }
-  }
-
-  @transient var clusterCenters:Array[org.apache.spark.ml.linalg.Vector] = loadClusterCenters()
-  @transient var clusteringResult = spark.read.json(sparkResultPath+"/result")//ResultIO.loadClusteringResult(spark,singleResultPath)
-
-  def addGroundTruth() ={
-    val clusterer = new Clustering("","",spark)
-    var templates = clusterer.getArbitraryQueryResult(clusterer.url,"SELECT * FROM templates_infoboxes").as[(String,String)]
-    templates = templates.as("template")
-    //clusteringResult.withColumn("key",$"name".apply(0))
-    val changerecords = clusteringResult.as("result")
-    val joined = templates.join(changerecords,$"name".apply(0) === $"template.entity")
-    //TODO: anpassen!
-    val actualString = " infobox settlement\n infobox album\n infobox person\n infobox football biography\n infobox musical artist\n infobox film\n infobox single\n infobox company\n infobox french commune\n infobox nrhp\n infobox book\n infobox television\n infobox military person\n infobox video game\n infobox school\n infobox officeholder\n infobox uk place\n infobox baseball biography\n infobox radio station\n infobox road\n infobox television episode\n infobox indian jurisdiction\n infobox writer\n infobox university\n infobox military unit\n infobox german location\n infobox mountain\n infobox military conflict\n infobox scientist\n infobox airport\n infobox ice hockey player\n infobox cvg\n infobox nfl biography\n infobox football club"
-    val actual = actualString.split("\n").map(s => s.trim).toSet
-    println("done")
-    clusteringResult = joined.withColumnRenamed("template","trueCluster").filter(r => actual.contains(r.getAs[String]("trueCluster")))
-    this
-  }
-
-  def parseYear(e: String) = {
-    if(e.contains('(') && e.contains(')')) {
-      val begin = e.indexOf('(')
-      e.substring(begin, begin + e.substring(e.indexOf('(')).indexOf(')') + 1)
-    } else{
-      "none"
-    }
-  }
-
-  def addToMultiset(set: mutable.Map[String, Int], str: String)  = {
-    if(set.contains(str)){
-      set(str) = set(str) +1
-    } else{
-      set(str) = 1
-    }
-  }
-
-  def dateEvaluation() = {
-    val entities = clusteringResult.map(r => (getAssignedCluster(r),getId(r).split(toRegex(Clustering.KeySeparator))(0)))
-    val maps = new mutable.HashMap[Long,(mutable.Map[String,Int],mutable.Map[String,Int])]()
-    val vals = entities.collect()
-    (0 until clusterCenters.size).foreach(maps(_) = (mutable.Map[String,Int](),mutable.Map[String,Int]()))
-    vals.foreach{ case (id,e) =>{
-      if(e.startsWith("\"") ){
-        addToMultiset(maps(id)._2,(parseYear(e)))
-      } else{
-        addToMultiset(maps(id)._1,(parseYear(e)))
-      }
-    }}
-    maps.foreach{case (id,(movies,series)) => {
-      println("Cluster" + id)
-      println("\t movies")
-      movies.toList.sortBy(t => -t._2).foreach(t => println("\t" + t._1 + ":\t\t" + t._2))
-      //println("\t series")
-      //series.toList.sortBy(t => -t._2).foreach(t => println("\t" + t._1 + ":\t\t" + t._2))
-    }}
-  }
 
   def addQuotes(string: String) = {
     "\"" + string +"\""
@@ -112,18 +33,16 @@ case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResult
   def toRegex(s: String): String = s.replace("|","\\|")
 
   def toLineString(row: Row): String = {
-    val vector = getFeatureVector(row)
+    val vector = getFeatures(row)
     val assignedCluster = getAssignedCluster(row)
     val trueCluster = getTrueCluster(row)
     val id = fixQuotes(getId(row));
-    //val entity = fixQuotes(id.split(toRegex(Clustering.KeySeparator))(0))
-    //val property = fixQuotes(id.split(toRegex(Clustering.KeySeparator))(1))
     val values = vector.toArray.mkString(",")
     return addQuotes(id) + ","+ addQuotes(assignedCluster.toString)+ "," + addQuotes(trueCluster) + "," +values;
   }
 
   def toFlattenedTuples(row: Row): scala.TraversableOnce[(String,Long,String,Int,Double)] = {
-    val vector = getFeatureVector(row)
+    val vector = getFeatures(row)
     val assignedCluster = getAssignedCluster(row);
     val trueCluster = getTrueCluster(row)
     val id = getId(row);
@@ -135,109 +54,43 @@ case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResult
     vector.toArray.zipWithIndex.map{case (y,x) => (id,assignedCluster,trueCluster,x,y)}
   }
 
+  def toMaxLength(center: Array[Double], maxCenterLength: Int) = {
+    center ++ Array.fill(maxCenterLength-center.size)(Double.NaN)
+  }
 
-  def serializeWithDublicatesRemoved() = {
-    val personList = List("infobox musical artist","infobox military person","infobox officeholder","infobox writer","infobox scientist")
-    val settlementList = List("infobox french commune","infobox german location")
-    val data = spark.read.option("header","true").csv(csvResultPath + "members.csv")
-    val schema = data.schema
-    implicit def rowEncoder: Encoder[Row] = RowEncoder(schema)
-    val rand = new Random()
-    val res = data.groupByKey( r => r.getString(0)).mapGroups{ case (id,group) =>
-      val list = group.toList
-      val templates = list.map( r => r.getString(2))
-      var toReturn:Seq[Any] = null
-      if(templates.size == 1){
-        toReturn = list.head.toSeq
-      } else if(templates.size == 2){
-        if(templates.contains("infobox person") && templates.toSet.intersect(personList.toSet).size!=0){
-          toReturn = list((templates.indexOf("infobox person")+1) %2).toSeq
-        } else if(templates.contains("infobox settlement") && templates.toSet.intersect(settlementList.toSet).size!=0){
-          toReturn = list((templates.indexOf("infobox settlement")+1) %2).toSeq
-        } else{
-          toReturn = list(rand.nextInt(list.size)).toSeq
-        }
-      } else {
-        toReturn = list(rand.nextInt(list.size)).toSeq
-      }
-      toReturn.updated(0,"\""+toReturn(0)+"\"").mkString(",")
-
-    }
-    //val writer = new PrintWriter(new FileWriter(csvResultPath + "members_cleaned.csv"))
-    val strDF = spark.sparkContext.parallelize(List(data.columns.mkString(","))).toDS()
-    strDF.union(res).coalesce(1).write.text(csvResultPath + "members_cleaned.csv")
-    //writer.println(data.columns.mkString(","))
-    //res.collect().foreach(writer.println(_))
-    //temporary:
-    //res.foreach(writer.println(_))
-    //writer.close()
+  def printLinesToSingleFile(ds: Dataset[String], filename: String) = {
+    ds.coalesce(1).write.text(resultPath + filename)
   }
 
   def serializeToCsv(): Unit ={
-    //var pr = new PrintWriter(new FileWriter(csvResultPath + "/members.csv"))
-    //pr.print("id,assignedCluster,trueCluster")//pr.print("\"id\",\"entity\",\"property\",assignedCluster")
-    val header = List("id","assignedCluster","trueCluster") ++ (0 until clusterCenters(0).size).toList.map("val_"+_)
+    //members:
+    val header = List("id","assignedCluster","trueCluster") ++ (0 until getFeatures(clusteringResult.head).size).toList.map("val_"+_)
     val headerAsString = spark.sparkContext.parallelize(List(header.mkString(","))).toDS()
-    headerAsString.union(clusteringResult.map(toLineString(_))).coalesce(1).write.text(csvResultPath + "/members.csv")
-    //for(i <- 0 until clusterCenters(0).size){
-    //  pr.print(",val_" + i);
-    //}
-    //pr.println();
-    //first variant
-    //val a = clusteringResult.map( r => toLineString(r)).collect()
-    //a.foreach(pr.println(_))
-    //pr.close()
-    //second variant: remove dublicates:
-    serializeWithDublicatesRemoved()
-    //second variant:
-    //clusteringResult.flatMap(r => toFlattenedTuples(r)).coalesce(1).write.option("escape","\"").csv(csvResultPath + "/membersTransposed.csv")
-    //serialize Center
-    val grouped = clusteringResult.groupByKey(r => getAssignedCluster(r))
-    val clusterSizes = grouped.mapGroups{case (cluster,it) => (cluster,it.size)}.collect().toMap
-    var pr = new PrintWriter(new FileWriter(csvResultPath + "/clusterCenters.csv"))
-    pr.print("\"clusterNumber\",\"clusterSize\"")
-    for(i <- 0 until clusterCenters(0).size){
-      pr.print(",val_" + i);
-    }
-    pr.println()
-    (0 until clusterCenters.length).foreach({ cluster =>
-      val clusterSize = if(clusterSizes.contains(cluster)) clusterSizes(cluster) else 0
-      pr.println(addQuotes(cluster.toString) + "," + addQuotes(clusterSize.toString) + ","+clusterCenters(cluster.toInt).toArray.mkString(","))
+    printLinesToSingleFile(headerAsString.union(clusteringResult.map(toLineString(_))),"/members.csv")
+    //centers:
+    val maxCenterLength = clusterCenters.map(_.size).max
+    val centerHeadeAsrString = spark.createDataset((0 until maxCenterLength).toList.map("val_"+_))
+    val centersAsString = spark.createDataset(clusterCenters).map(center => toMaxLength(center,maxCenterLength).mkString(","))
+    printLinesToSingleFile(centerHeadeAsrString.union(centersAsString),"/centers.csv")
+    //centers transposed:
+    val transposedLines = (0 until maxCenterLength).flatMap({ cluster =>
+      clusterCenters(cluster.toInt).toArray.zipWithIndex.map{case (y,x) => x + "," + y + "," + cluster }
     })
-    pr.close()
-    //second variant:
-    pr = new PrintWriter(new FileWriter(csvResultPath + "/clusterCentersTransposed.csv"))
-    pr.println("X,Y,clusterID_With_Size,clusterID")
-    (0 until clusterCenters.length).foreach({ cluster =>
-      clusterCenters(cluster.toInt).toArray.zipWithIndex.foreach{case (y,x) => pr.println(x + "," + y + "," + cluster + " (" + clusterSizes(cluster) + "),"+cluster)}
-    })
-    pr.close()
+    printLinesToSingleFile(spark.createDataset(transposedLines),"/clusterCentersTransposed.csv")
   }
 
   def timeSeriesToString(r: Row): Any = {
-    val vec: mutable.WrappedArray[Double] = getFeatureVector(r)
+    val vec: mutable.WrappedArray[Double] = getFeatures(r)
     timeSeriesToString(vec)
-  }
-
-  private def getFeatureVector(r: Row) = {
-    val vec = r.getAs[Row]("features").getAs[mutable.WrappedArray[Double]](1)
-    vec
   }
 
   def timeSeriesToString(vec: Seq[Double]) = {
     "[" + vec.toArray.map( d => "%.1f".format(d)).mkString(",") + "]"
   }
 
-  def printRepresentatives(clusterId: Int) = {
-    val clusterSize = clusteringResult.filter( r => getAssignedCluster(r) == clusterId).count()
-    println("====================== Cluster Representatives for cluster " + clusterId + " (size:" + clusterSize +")======================")
-    println("Centroid: " + timeSeriesToString(clusterCenters(clusterId).toArray))
-    println("-----------------------------------------------------------------------------------------------------------------------------------")
-    clusteringResult.filter( r => getAssignedCluster(r) == clusterId)
-      .take(100)
-      .foreach( r => println(getId(r) + ", " + timeSeriesToString(r)))
+  private def getFeatures(r: Row) = {
+    r.getAs[Row]("features").getAs[mutable.WrappedArray[Double]](1)
   }
-
   private def getId(r: Row) = {
     r.getAs[Seq[String]]("name").mkString(Clustering.KeySeparator)
   }
@@ -249,11 +102,4 @@ case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResult
   private def getTrueCluster(r: Row) = {
     r.getAs[String]("trueCluster")
   }
-
-
-  def printClusterRepresentatives() = {
-    println("====================== Cluster Representatives ======================")
-    clusterCenters.zipWithIndex.foreach(t => printRepresentatives(t._2) )
-  }
-
 }

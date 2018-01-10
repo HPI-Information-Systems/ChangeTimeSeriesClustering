@@ -7,7 +7,6 @@ import java.time.temporal.ChronoUnit
 import java.util.Properties
 
 import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, TimeSeries}
-import de.hpi.data_change.time_series_similarity.visualization.CSVSerializer
 import dmlab.main.{FloatPoint, FunctionSet, MainDriver}
 import org.apache.spark.ml.clustering.KMeans
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
@@ -32,6 +31,10 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
 
   def setGrouper(grouper:ChangeRecord => Seq[String]) = this.grouper = grouper
 
+  //------------------------------------------- Begin Parameters relevant for GroundTruth -------------------------------------------
+  var addGroundTruth = true
+  var templatesPath = "/home/leon/Documents/researchProjects/wikidata/data/templates.csv"
+  //------------------------------------------- End Parameters relevant for GroundTruth -------------------------------------------
 
   //------------------------------------------- Begin Parameters settable via json config object -------------------------------------------
   //Parameters are initilaized with default values
@@ -335,10 +338,29 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       //TODO: add column to database with cluster id
       //TODO: create database containing the cluster centers
     }
+    if(addGroundTruth){
+      resultDF = addGroundTruth(resultDF)
+    }
     resultDF.write.json(resultDirectory + configIdentifier + "/result")
     val csvResultPath = resultDirectory + configIdentifier + "/csvResults/"
     new File(csvResultPath).mkdirs()
-    new CSVSerializer(spark, resultDirectory + configIdentifier,csvResultPath).addGroundTruth().serializeToCsv()
+    //new CSVSerializer(spark, resultDirectory + configIdentifier,csvResultPath).addGroundTruth().serializeToCsv()
+  }
+
+  def addGroundTruth(clusteringResult:DataFrame):DataFrame ={
+    val clusterer = new Clustering("","",spark)
+    //var templates = clusterer.getArbitraryQueryResult(clusterer.url,"SELECT * FROM templates_infoboxes").as[(String,String)]
+    var templates = spark.read.csv(templatesPath)
+    templates = templates.withColumnRenamed(templates.columns(0),"entity")
+      .withColumnRenamed(templates.columns(1),"template")
+    templates = templates.as("template")
+    val changerecords = clusteringResult.as("result")
+    val joined = templates.join(changerecords,$"name".apply(0) === $"template.entity")
+    //TODO: anpassen!
+    val actualString = " infobox settlement\n infobox album\n infobox person\n infobox football biography\n infobox musical artist\n infobox film\n infobox single\n infobox company\n infobox french commune\n infobox nrhp\n infobox book\n infobox television\n infobox military person\n infobox video game\n infobox school\n infobox officeholder\n infobox uk place\n infobox baseball biography\n infobox radio station\n infobox road\n infobox television episode\n infobox indian jurisdiction\n infobox writer\n infobox university\n infobox military unit\n infobox german location\n infobox mountain\n infobox military conflict\n infobox scientist\n infobox airport\n infobox ice hockey player\n infobox cvg\n infobox nfl biography\n infobox football club"
+    val actual = actualString.split("\n").map(s => s.trim).toSet
+    println("done")
+    joined.withColumnRenamed("template","trueCluster")
   }
 
   def getChangeRecordDataSet(rawData: DataFrame) = {

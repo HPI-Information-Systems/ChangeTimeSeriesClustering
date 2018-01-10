@@ -32,6 +32,6 @@ object WikipediaEntityClusteringMain_top_34_log_normalize_15days extends App wit
   //clusterer.clustering()
   val csvResultPath = args(1) + args(2) + "/csvResults/"
   new File(csvResultPath).mkdirs()
-  new CSVSerializer(spark, args(1) + args(2),csvResultPath).addGroundTruth().serializeToCsv()
+  //new CSVSerializer(spark, args(1) + args(2),csvResultPath).addGroundTruth().serializeToCsv()
 
 }
