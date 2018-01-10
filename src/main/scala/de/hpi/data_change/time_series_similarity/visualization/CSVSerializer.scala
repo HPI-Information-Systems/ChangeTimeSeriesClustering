@@ -31,7 +31,10 @@ case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResult
 
 
   def loadClusterCenters() = {
-    if(new File(sparkResultPath + "/model").exists()){
+    val conf = spark.sparkContext.hadoopConfiguration
+    val fs = org.apache.hadoop.fs.FileSystem.get(conf)
+    val wasKMeans = fs.exists(new org.apache.hadoop.fs.Path(sparkResultPath + "/model"))
+    if(wasKMeans){
       KMeansModel.load(sparkResultPath + "/model").clusterCenters
     } else{
       val br = new BufferedReader(new FileReader(sparkResultPath + "KMedoidCenters.csv"))
@@ -54,25 +57,10 @@ case class CSVSerializer(spark: SparkSession, sparkResultPath: String, csvResult
     //clusteringResult.withColumn("key",$"name".apply(0))
     val changerecords = clusteringResult.as("result")
     val joined = templates.join(changerecords,$"name".apply(0) === $"template.entity")
+    //TODO: anpassen!
     val actualString = " infobox settlement\n infobox album\n infobox person\n infobox football biography\n infobox musical artist\n infobox film\n infobox single\n infobox company\n infobox french commune\n infobox nrhp\n infobox book\n infobox television\n infobox military person\n infobox video game\n infobox school\n infobox officeholder\n infobox uk place\n infobox baseball biography\n infobox radio station\n infobox road\n infobox television episode\n infobox indian jurisdiction\n infobox writer\n infobox university\n infobox military unit\n infobox german location\n infobox mountain\n infobox military conflict\n infobox scientist\n infobox airport\n infobox ice hockey player\n infobox cvg\n infobox nfl biography\n infobox football club"
     val actual = actualString.split("\n").map(s => s.trim).toSet
     println("done")
-    /*val withGroundTruth = joined.groupByKey(r => r.getString(0)).mapGroups{case (entity,rIt) =>
-      val list = rIt.toList
-      var trueCluster = list.head.getString(1)
-      if(list.size > 1){
-        trueCluster = "multi"
-      }
-      val assignedCluster = list.head.getLong(2)
-      val features = list.head.getAs[Row](3)
-      val name = list.head.getAs[Seq[String]](4)
-      (assignedCluster,features,name,trueCluster)
-    }
-    var res = withGroundTruth.toDF()
-    res = res.withColumnRenamed(res.columns(0),"assignedCluster")
-      .withColumnRenamed(res.columns(1),"features")
-      .withColumnRenamed(res.columns(2),"name")
-      .withColumnRenamed(res.columns(3),"trueCluster")*/
     clusteringResult = joined.withColumnRenamed("template","trueCluster").filter(r => actual.contains(r.getAs[String]("trueCluster")))
     this
   }

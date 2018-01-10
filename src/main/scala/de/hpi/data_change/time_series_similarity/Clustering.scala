@@ -7,7 +7,6 @@ import java.time.temporal.ChronoUnit
 import java.util.Properties
 
 import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, TimeSeries}
-import de.hpi.data_change.time_series_similarity.io.DataIO
 import de.hpi.data_change.time_series_similarity.visualization.CSVSerializer
 import dmlab.main.{FloatPoint, FunctionSet, MainDriver}
 import org.apache.spark.ml.clustering.KMeans
@@ -322,9 +321,12 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       val pr = new PrintWriter(new File(resultDirectory + configIdentifier + filename))
       medoids.map(fp => fp.getValues.mkString(",")).foreach(println(_))
     } else if(clusteringAlg == "DBAKMeans"){
-      val model = new DBAKMeans(numClusters,numIterations,seed,spark)/*.fit(finalDf)
-      resultDF = model.transform(finalDF)
-      model.serializeCenters("centers.csv");*/
+      val (centers,result) = new DBAKMeans(numClusters,numIterations,seed,spark).fit(finalDf)
+      resultDF = result
+      //resultDF = model.transform(finalDF)
+      var modelDataset = spark.createDataset(centers)
+      modelDataset.withColumnRenamed(modelDataset.columns(0),"center")
+          .write.json(resultDirectory + configIdentifier + "/DBACenters");
     } else {
       throw new AssertionError("unknown clustering algorithm")
     }

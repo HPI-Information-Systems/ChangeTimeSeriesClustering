@@ -54,35 +54,35 @@ public class DBA {
 
 
     /**
-     * Dtw Barycenter Averaging (DBA)
-     * @param C average sequence to update
+     * Online Dtw Barycenter Averaging (DBA), that works with an iterator and returns the new average sequence
+     * @param initialCenter average sequence to update
      * @param sequences set of sequences to average
      */
-    public static void DBA(double[] C, Iterator<double[]> sequences,int numValues) {
-        final ArrayList<Double>[] tupleAssociation = new ArrayList[C.length];
-        for (int i = 0; i < tupleAssociation.length; i++) {
-            tupleAssociation[i] = new ArrayList<Double>(numValues);
+    public static double[] DBA(double[] initialCenter, Iterator<double[]> sequences) {
+        final ArrayList<Pair<Double,Integer>> onlineBarycenter = new ArrayList();
+        for (int i = 0; i < initialCenter.length; i++) {
+            onlineBarycenter.add(new Pair<Double,Integer>(0.0,0));
         }
         int nbTuplesAverageSeq, i, j, indiceRes;
         double res = 0.0;
-        int centerLength = C.length;
+        int centerLength = initialCenter.length;
         int seqLength;
 
         while (sequences.hasNext()) {
             double[] T = sequences.next();
             seqLength = T.length;
 
-            costMatrix[0][0] = distanceTo(C[0], T[0]);
+            costMatrix[0][0] = distanceTo(initialCenter[0], T[0]);
             pathMatrix[0][0] = DBA.NIL;
             optimalPathLength[0][0] = 0;
 
             for (i = 1; i < centerLength; i++) {
-                costMatrix[i][0] = costMatrix[i - 1][0] + distanceTo(C[i], T[0]);
+                costMatrix[i][0] = costMatrix[i - 1][0] + distanceTo(initialCenter[i], T[0]);
                 pathMatrix[i][0] = DBA.UP;
                 optimalPathLength[i][0] = i;
             }
             for (j = 1; j < seqLength; j++) {
-                costMatrix[0][j] = costMatrix[0][j - 1] + distanceTo(T[j], C[0]);
+                costMatrix[0][j] = costMatrix[0][j - 1] + distanceTo(T[j], initialCenter[0]);
                 pathMatrix[0][j] = DBA.LEFT;
                 optimalPathLength[0][j] = j;
             }
@@ -105,7 +105,7 @@ public class DBA {
                             optimalPathLength[i][j] = optimalPathLength[i - 1][j] + 1;
                             break;
                     }
-                    costMatrix[i][j] = res + distanceTo(C[i], T[j]);
+                    costMatrix[i][j] = res + distanceTo(initialCenter[i], T[j]);
                 }
             }
 
@@ -115,7 +115,7 @@ public class DBA {
             j = seqLength - 1;
 
             for (int t = nbTuplesAverageSeq - 1; t >= 0; t--) {
-                tupleAssociation[i].add(T[j]);
+                addToOnlineCenter(onlineBarycenter,i,T[j]);
                 switch (pathMatrix[i][j]) {
                     case DIAGONAL:
                         i = i - 1;
@@ -128,14 +128,45 @@ public class DBA {
                         i = i - 1;
                         break;
                 }
-
             }
-
         }
 
+        double[] newCenter = new double[centerLength];
         for (int t = 0; t < centerLength; t++) {
-            C[t] = barycenter((tupleAssociation[t].toArray()));
+            Pair<Double, Integer> pair = onlineBarycenter.get(t);
+            newCenter[t] = pair.getFirst() / pair.getSecond();
         }
+        return newCenter;
+    }
+
+    private static void addToOnlineCenter(ArrayList<Pair<Double, Integer>> onlineBarycenter, int i, double v) {
+        Pair<Double, Integer> pair = onlineBarycenter.get(i);
+        pair.setFirst(pair.getFirst() + v);
+        pair.setSecond(pair.getSecond()+1);
+    }
+
+    public static double barycenter(List<Double> tab) {
+        if (tab.size() < 1) {
+            throw new RuntimeException("empty double tab");
+        }
+        double sum = 0.0;
+        sum = 0.0;
+        for (Object o : tab) {
+            sum += ((Double) o);
+        }
+        return sum / tab.size();
+    }
+
+    public static double barycenter(Object ... tab) {
+        if (tab.length < 1) {
+            throw new RuntimeException("empty double tab");
+        }
+        double sum = 0.0;
+        sum = 0.0;
+        for (Object o : tab) {
+            sum += ((Double) o);
+        }
+        return sum / tab.length;
     }
 
     /**
@@ -262,19 +293,6 @@ public class DBA {
         return (a - b) * (a - b);
     }
 
-
-    public static double barycenter(final Object... tab) {
-        if (tab.length < 1) {
-            throw new RuntimeException("empty double tab");
-        }
-        double sum = 0.0;
-        sum = 0.0;
-        for (Object o : tab) {
-            sum += ((Double) o);
-        }
-        return sum / tab.length;
-    }
-
     public static void main(String [] args){
         double [][]sequences = new double[100][];
         List<double[]> sequences2 = new ArrayList<>();
@@ -298,16 +316,17 @@ public class DBA {
             assertArrayEquals(sequences[i],sequences2.get(i));
         }
         DBA(averageSequence, sequences);
-        DBA(averageSequence2, sequences2.iterator(),sequences2.size());
+        averageSequence2 = DBA(averageSequence2, sequences2.iterator());
         assertArrayEquals(averageSequence,averageSequence2);
 
         printArray(averageSequence);
 
         DBA(averageSequence, sequences);
-        DBA(averageSequence2,sequences2.iterator(),sequences2.size());
+        averageSequence2 = DBA(averageSequence2,sequences2.iterator());
         assertArrayEquals(averageSequence,averageSequence2);
 
         printArray(averageSequence);
+        printArray(averageSequence2);
     }
 
     private static void assertArrayEquals(double[] a1, double[] a2) {
