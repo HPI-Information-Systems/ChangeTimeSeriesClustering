@@ -18,14 +18,16 @@ object TopTemplateChangeRecordExtraction extends App with Serializable{
   import org.apache.spark.sql.functions.lower
   val clusterer = new Clustering("","",spark)
   val stuff = clusterer.getChangeRecordDataSet(args(0))
-  //re-write:
+  //val templatesRaw = spark.read.csv(args(2)).as[(String,String)]
+  //val templates = templatesRaw
+  //  .withColumnRenamed()
   val filtered = individualFilter(stuff)
-  filtered.write.csv("/home/leon/Documents/researchProjects/wikidata/data/top_templates_new/")
+  filtered.write.csv(args(1))
 
   def individualFilter(dataset2: Dataset[ChangeRecord]): Dataset[ChangeRecord] = {
     //implicit def encoder: Encoder[(String,String,ChangeRecord)] = org.apache.spark.sql.Encoders.kryo[(String,String,ChangeRecord)]
     val dataset = dataset2.map(cr => ChangeRecord(cr.entity.toLowerCase,cr.property,cr.value,cr.timestamp))
-    val actualString = " infobox settlement\n infobox album\n infobox person\n infobox football biography\n infobox musical artist\n infobox film\n infobox single\n infobox company\n infobox french commune\n infobox nrhp\n infobox book\n infobox television\n infobox military person\n infobox video game\n infobox school\n infobox officeholder\n infobox uk place\n infobox baseball biography\n infobox radio station\n infobox road\n infobox television episode\n infobox indian jurisdiction\n infobox writer\n infobox university\n infobox military unit\n infobox german location\n infobox mountain\n infobox military conflict\n infobox scientist\n infobox airport\n infobox ice hockey player\n infobox cvg\n infobox nfl biography\n infobox football club"
+    val actualString = "infobox settlement\n infobox album\n infobox football biography\n infobox musical artist\n infobox film\n infobox person\n infobox single\n infobox company\n infobox actor\n infobox nrhp\n infobox french commune\n infobox book\n infobox television\n infobox military person\n infobox radio station\n infobox university\n infobox television episode\n infobox video game\n infobox officeholder\n infobox indian jurisdiction\n infobox uk place\n infobox school\n infobox road\n infobox writer\n infobox baseball biography\n infobox military unit\n infobox mountain\n infobox military conflict\n infobox german location\n infobox airport\n infobox ice hockey player\n infobox scientist\n infobox football club"
     val topTemplates = actualString.split("\n").map(s => s.trim).toSet
     var templates = clusterer.getArbitraryQueryResult(clusterer.url,"SELECT * FROM templates_infoboxes").as[(String,String)]
     templates = templates.as("template")

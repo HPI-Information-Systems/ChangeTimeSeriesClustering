@@ -321,7 +321,11 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       val filename = "KMedoidCenters.csv"
       val pr = new PrintWriter(new File(resultDirectory + configIdentifier + filename))
       medoids.map(fp => fp.getValues.mkString(",")).foreach(println(_))
-    } else{
+    } else if(clusteringAlg == "DBAKMeans"){
+      val model = new DBAKMeans(numClusters,numIterations,seed,spark)/*.fit(finalDf)
+      resultDF = model.transform(finalDF)
+      model.serializeCenters("centers.csv");*/
+    } else {
       throw new AssertionError("unknown clustering algorithm")
     }
     if(useDB){

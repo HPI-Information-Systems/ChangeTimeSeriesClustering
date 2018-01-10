@@ -1,5 +1,6 @@
 import de.hpi.data_change.time_series_similarity.Clustering
 import de.hpi.data_change.time_series_similarity.data.TimeSeries
+import de.hpi.data_change.time_series_similarity.dba.DBA
 import net.sf.javaml.core.DenseInstance
 import net.sf.javaml.distance.dtw.DTWSimilarity
 import org.apache.spark.sql.SparkSession
@@ -34,5 +35,10 @@ class DTWDistanceTest extends FlatSpec{
       }
     }
   }
+
+  "Modified DBA" should "output the same values as original DBA" in {
+
+  }
+
 
 }

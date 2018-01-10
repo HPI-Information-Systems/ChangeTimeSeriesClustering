@@ -37,21 +37,21 @@ case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUni
     val B = other.yValues
     val S = A.size
     val T = B.size
-    val m:mutable.Seq[mutable.Seq[(Double,(Int,Int))]] = mutable.ListBuffer.fill(S)(mutable.ListBuffer.fill(T)(0.0,(-1,-1)))
-    m(0)(0) = (pointDist(A(0),B(0)),(0,0))
+    val m:mutable.Seq[mutable.Seq[Double]] = mutable.ListBuffer.fill(S)(mutable.ListBuffer.fill(T)(0.0))
+    m(0)(0) = pointDist(A(0),B(0))
     for(i <- 1 until S){
-      m(i)(0) = (/*m(i - 1)(0)._1 +*/ pointDist(A(i), B(0)),(i - 1, 0))
+      m(i)(0) = m(i - 1)(0) + pointDist(A(i), B(0))
     }
     for(j <- 1 until T){
-      m(0)(j) = (/*m(0)(j-1)._1 +*/ pointDist(A(0),B(j)),(0,j-1))
+      m(0)(j) = m(0)(j-1) + pointDist(A(0),B(j))
     }
     (1 until S).foreach(i => {
       (1 until T).foreach( j => {
-        val minimum = List( m(i-1)(j),m(i)(j-1),m(i-1)(j-1)).minBy( t => t._1)
-        m(i)(j) = (minimum._1 + pointDist(A(i),B(j)),minimum._2)
+        val minimum = List( m(i-1)(j),m(i)(j-1),m(i-1)(j-1)).min
+        m(i)(j) = minimum + pointDist(A(i),B(j))
       })
     })
-    m(S-1)(T-1)
+    (m(S-1)(T-1),(-1,-1))
   }
 
   def removeLeadingZeros(): TimeSeries = {
