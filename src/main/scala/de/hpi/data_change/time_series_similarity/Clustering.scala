@@ -7,7 +7,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Properties
 
 import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, TimeSeries}
-import dmlab.main.{FloatPoint, FunctionSet, MainDriver}
+import de.hpi.data_change.time_series_similarity.visualization.CSVSerializer
 import org.apache.spark.ml.clustering.KMeans
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
@@ -76,10 +76,6 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   var end:java.sql.Timestamp = java.sql.Timestamp.valueOf("2017-07-15 00:00:00") //2017-07-14
   //------------------------------------------- End Dataset Specific Parameters ----------------------------------------------------------
 
-  def medoidAssigner(medoidList: List[FloatPoint]) = udf(
-    (r: Row) => medoidList.map( medoid => FunctionSet.distance(toFloatPoint(r),medoid)).zipWithIndex.min._2
-  )
-
   def setFileAsDataSource(filePath:String): Unit = {
     this.filePath = filePath
     useDB = false
@@ -111,21 +107,15 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     transformation = List(transformationString)
     featureExtraction = config.get("featureExtraction").getTextValue
     clusteringAlg = config.get("clusteringAlg").getTextValue
-    if(clusteringAlg == "KMeans" || clusteringAlg == "BisectingKMeans"){
+    if(clusteringAlg == "KMeans" || clusteringAlg == "DBAKMeans"){
       val subElementName = clusteringAlg
       numClusters = config.get(subElementName + " Parameters").get("k").getIntValue
       numIterations = config.get(subElementName + " Parameters").get("maxIter").getIntValue
       seed = config.get(subElementName + " Parameters").get("seed").getIntValue
-    } else if(clusteringAlg == "PAMAE"){
-      val subElementName = clusteringAlg
-      numClusters = config.get(subElementName + " Parameters").get("k").getIntValue
-      distanceMeasure = "DTW"
     }
   }
 
   //local parameters:
-  //implicit def rowEncoder: Encoder[Row] = org.apache.spark.sql.Encoders.kryo[Row]
-  //implicit def changeRecordEncoder: Encoder[ChangeRecord] = org.apache.spark.sql.Encoders.kryo[ChangeRecord]
   implicit def changeRecordListEncoder: Encoder[List[ChangeRecord]] = org.apache.spark.sql.Encoders.kryo[List[ChangeRecord]]
   implicit def changeRecordTupleListEncoder: Encoder[(String,List[ChangeRecord])] = org.apache.spark.sql.Encoders.kryo[(String,List[ChangeRecord])]
   implicit def changeRecordTupleListEncoder_2: Encoder[(Seq[String],List[ChangeRecord])] = org.apache.spark.sql.Encoders.kryo[(Seq[String],List[ChangeRecord])]
@@ -141,15 +131,13 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   }
   import spark.implicits._
 
-  def writeToDB(resultDF: DataFrame) = {
-    //resultDF.map(r => r.getAs[String](id)) TODO: it better to try and group by a list of strings?
-//    val fields = resultDF.head.getAs[Seq[String]](0).zipWithIndex.map(a => StructField("key_" + a._2.toString, DataTypes.StringType, nullable = true))
-//    val schema = StructType(fields)
+  def writeToDB(resultDF: DataFrame,centers:Seq[Array[Double]]) = {
+    val centerDF = spark.createDataset(centers.zipWithIndex)
     val toWrite = resultDF.map(r => {
       val keyArray = r.getAs[Seq[String]](0)
       val cluster = r.getAs[Int]("assignedCluster")
-      (keyArray.mkString(Clustering.KeySeparator),cluster)
-      //Row.fromSeq(keyArray)//++cluster.toString
+      //TODO: ground truth?
+      (keyArray.mkString(Clustering.KeySeparator),cluster) //TODO: variable amount of columns?
     })
     println("dummy output simulating database write")
     val props = new Properties()
@@ -157,16 +145,7 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     props.setProperty("password",pw)
     props.setProperty("driver",driver)
     toWrite.write.jdbc(url,configIdentifier,props)
-      /*.format("jdbc") //map(r => RowFactory.create(r.get(0),r.get(2)))
-      .option("url",url)
-      .option("driver",driver)
-      .option("useUnicode","true")
-      .option("useSSL","false")
-      .option("user",user)
-      .option("password",pw)
-      .option("table",configIdentifier)
-        .saveAsTable(configIdentifier)*/
-
+    centerDF.write.jdbc(url,configIdentifier + "_centers",props)
   }
 
   def getArbitraryQueryResult(url:String,query:String) = {
@@ -227,29 +206,7 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       .mapGroups{case (key,it) => (key.asInstanceOf[Seq[String]],it.toList.map{case (key,ts) => ts})}
   }
 
-  def individualFilter(dataset: Dataset[ChangeRecord]): Dataset[ChangeRecord] = {
-    val keys = Set("\"Arrow\" (2012)","\"The Big Bang Theory\" (2007)","\"House of Cards\" (2013)","\"Walker, Texas Ranger\" (1993)","\"Star Trek\" (1966)",
-    "\"Lost\" (2004)","\"The Fresh Prince of Bel-Air\" (1990)","\"Friends\" (1994)","\"The Simpsons\" (1989)","\"Doctor Who\" (1963)")
-    dataset.filter( cr => {
-      cr.property == "Rating.Votes" &&
-      keys.exists(cr.entity.contains(_)) &&
-      cr.entity.contains("{")
-    })
-  }
-
   def noInputSet(): Boolean = filePath == null && querystring == null
-
-  def toFloatPoint(r: Row): FloatPoint = {
-    val vec = r.getAs[org.apache.spark.ml.linalg.Vector]("features");
-    val fp = new FloatPoint(vec.size,-1)
-    fp.setvalues(vec.toArray.map(d => d.toFloat))
-    fp
-  }
-
-  def transformToJavaRDD(finalDf: DataFrame): _root_.org.apache.spark.api.java.JavaRDD[_root_.dmlab.main.FloatPoint] = {
-    val a = finalDf.toJavaRDD.rdd.map(r => toFloatPoint(r)).toJavaRDD()
-    a
-  }
 
   def clustering() = {
     if(noInputSet()){
@@ -268,7 +225,7 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       var dataset = getChangeRecordDataSet(filePath)
       //individual filter
       if(filter != null) {
-        dataset = individualFilter(dataset)
+        dataset = filter(dataset)
       }
       filteredGroups = getFilteredGroups(dataset)
     }
@@ -289,6 +246,7 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     val finalDf = spark.createDataFrame(rdd,schema)
     //Clustering:
     var resultDF:Dataset[Row] = null
+    var centers:Seq[Array[Double]] = null
     if(clusteringAlg == "KMeans") {
       val clusteringAlg = new KMeans()
         .setFeaturesCol("features")
@@ -298,53 +256,25 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
         .setPredictionCol("assignedCluster")
       val kmeansModel = clusteringAlg.fit(finalDf)
 
-      /*val clusteringAlg2 = new BisectingKMeans()
-      .setFeaturesCol("features")
-      .setK(numClusters)
-      .setMaxIter(numIterations)
-      .setSeed(seed)
-      .setPredictionCol("assignedCluster")
-    val hierarchicalModel = clusteringAlg2.fit(finalDf)*/
-      //hierarchicalModel.
-
       resultDF = kmeansModel.transform(finalDf)
-      println("Cost is: " + kmeansModel.computeCost(finalDf))
-      println("Starting to save results")
       kmeansModel.save(resultDirectory + configIdentifier + "/model")
-    } else if (clusteringAlg == "PAMAE"){
-      val numOfSampledObjects = 100;
-      val numOfSamples = 40
-      val numOfCores = 2
-      val numOfIterations = 1
-      val medoids = scala.collection.JavaConversions.asScalaBuffer(
-        MainDriver.executePAMAE(transformToJavaRDD(finalDf), numClusters, numOfSampledObjects, 10, numOfCores, numOfIterations, spark.sparkContext)
-      ).toList
-      resultDF = finalDf.withColumn("assignedCluster",medoidAssigner(medoids)($"features"))
-      val filename = "KMedoidCenters.csv"
-      val pr = new PrintWriter(new File(resultDirectory + configIdentifier + filename))
-      medoids.map(fp => fp.getValues.mkString(",")).foreach(println(_))
+      centers = kmeansModel.clusterCenters.map( v => v.toArray)
     } else if(clusteringAlg == "DBAKMeans"){
-      val (centers,result) = new DBAKMeans(numClusters,numIterations,seed,spark).fit(finalDf)
-      resultDF = result
-      //resultDF = model.transform(finalDF)
-      var modelDataset = spark.createDataset(centers)
-      modelDataset.withColumnRenamed(modelDataset.columns(0),"center")
-          .write.json(resultDirectory + configIdentifier + "/DBACenters");
+      val (newCenters,newResultDF) = new DBAKMeans(numClusters,numIterations,seed,spark).fit(finalDf)
+      resultDF = newResultDF
+      centers = newCenters
     } else {
       throw new AssertionError("unknown clustering algorithm")
-    }
-    if(useDB){
-      writeToDB(resultDF)
-      //TODO: add column to database with cluster id
-      //TODO: create database containing the cluster centers
     }
     if(addGroundTruth){
       resultDF = addGroundTruth(resultDF)
     }
-    resultDF.write.json(resultDirectory + configIdentifier + "/result")
-    val csvResultPath = resultDirectory + configIdentifier + "/csvResults/"
-    new File(csvResultPath).mkdirs()
-    //new CSVSerializer(spark, resultDirectory + configIdentifier,csvResultPath).addGroundTruth().serializeToCsv()
+    if(useDB){
+      writeToDB(resultDF,centers)
+      //TODO: add column to database with cluster id
+      //TODO: create database containing the cluster centers
+    }
+    new CSVSerializer(spark, resultDirectory + configIdentifier,centers,resultDF).serializeToCsv()
   }
 
   def addGroundTruth(clusteringResult:DataFrame):DataFrame ={

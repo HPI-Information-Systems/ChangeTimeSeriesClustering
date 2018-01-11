@@ -1,17 +1,7 @@
 package de.hpi.data_change.time_series_similarity.specific_executions
 
-import java.sql.Timestamp
-import java.time.LocalDateTime
-
 import de.hpi.data_change.time_series_similarity.Clustering
-import de.hpi.data_change.time_series_similarity.Main.args
-import de.hpi.data_change.time_series_similarity.data.ChangeRecord
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.{max, min}
-
-import scala.util.Random
+import org.apache.spark.sql.SparkSession
 
 object WikipediaEntityClusteringMain_top34_normalize extends App with Serializable{
   val isLocal = args.length==4 && args(3) == "-local"
@@ -23,7 +13,6 @@ object WikipediaEntityClusteringMain_top34_normalize extends App with Serializab
     sparkBuilder = sparkBuilder.master("local[2]")
   }
   val spark = sparkBuilder.getOrCreate()
-  import spark.implicits._
   val clusterer = new Clustering(args(1),args(2),spark)
   clusterer.setFileAsDataSource(args(0))
   //fixed params
