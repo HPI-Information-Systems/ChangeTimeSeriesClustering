@@ -37,30 +37,6 @@
       <!--<scope>provided</scope>-->
     </dependency>
 
-    <dependency>
-      <groupId>org.scalanlp</groupId>
-      <artifactId>breeze-natives_2.11</artifactId>
-      <version>0.13.2</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.scalanlp</groupId>
-      <artifactId>breeze_2.11</artifactId>
-      <version>0.13.2</version>
-    </dependency>
-
-      <dependency>
-          <groupId>org.scalanlp</groupId>
-          <artifactId>breeze-viz_2.11</artifactId>
-          <version>0.13.2</version>
-      </dependency>
-
-    <dependency>
-      <groupId>jfree</groupId>
-      <artifactId>jfreechart</artifactId>
-      <version>1.0.13</version>
-    </dependency>
-
     <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-sql_2.10 -->
     <dependency>
       <groupId>org.apache.spark</groupId>
@@ -75,51 +51,10 @@
       <version>${spark.version}</version>
     </dependency>
 
-
-    <!-- Test -->
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.11</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.specs2</groupId>
-      <artifactId>specs2-core_${scala.compat.version}</artifactId>
-      <version>2.4.16</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.scalatest</groupId>
-      <artifactId>scalatest_${scala.compat.version}</artifactId>
-      <version>2.2.4</version>
-      <scope>test</scope>
-    </dependency>
-
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <version>42.1.4</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.specs2</groupId>
-      <artifactId>specs2-junit_${scala.compat.version}</artifactId>
-      <version>2.4.16</version>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- https://mvnrepository.com/artifact/org.scala-lang/scala-library -->
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-      <version>2.11.11</version>
-    </dependency>
-
-    <dependency>
-      <groupId>mysql</groupId>
-      <artifactId>mysql-connector-java</artifactId>
-      <version>6.0.6</version>
     </dependency>
 
     <dependency>
@@ -143,22 +78,9 @@
 
     <!--<dependency>-->
       <!--<groupId>monetdb</groupId>-->
-      <!--<artifactId>monetdb-jdbc-new</artifactId>-->
-      <!--<version>2.32</version>-->
-    <!--</dependency>-->
-
-    <dependency>
-      <groupId>monetdb</groupId>
-      <artifactId>localMonetDB</artifactId>
-      <version>2.27</version>
-    </dependency>
-
-    <!--<dependency>-->
-      <!--<groupId>monetdb</groupId>-->
-      <!--<artifactId>monetdb-jdbc</artifactId>-->
+      <!--<artifactId>localMonetDB</artifactId>-->
       <!--<version>2.27</version>-->
     <!--</dependency>-->
-
 
   </dependencies>
 
@@ -204,46 +126,6 @@
           </includes>
         </configuration>
       </plugin>
-
-      <!--<plugin>-->
-        <!--&lt;!&ndash; Build an executable JAR &ndash;&gt;-->
-        <!--<groupId>org.apache.maven.plugins</groupId>-->
-        <!--<artifactId>maven-jar-plugin</artifactId>-->
-        <!--<configuration>-->
-          <!--<archive>-->
-            <!--<manifest>-->
-              <!--<addClasspath>true</addClasspath>-->
-              <!--<classpathPrefix>lib/</classpathPrefix>-->
-              <!--<mainClass>de.hpi.data_change.time_series_similarity.ClusteringMain</mainClass>-->
-            <!--</manifest>-->
-          <!--</archive>-->
-        <!--</configuration>-->
-      <!--</plugin>-->
-
-      <!--<plugin>-->
-        <!--<artifactId>maven-assembly-plugin</artifactId>-->
-        <!--<groupId>org.apache.maven.plugins</groupId>-->
-        <!--<executions>-->
-          <!--<execution>-->
-            <!--<id>make-executable-jar-with-dependencies</id>-->
-            <!--<phase>package</phase>-->
-            <!--<goals>-->
-              <!--<goal>single</goal>-->
-            <!--</goals>-->
-            <!--<configuration>-->
-              <!--<archive>-->
-                <!--<manifest>-->
-                  <!--<addClasspath>true</addClasspath>-->
-                  <!--<mainClass>de.hpi.data_change.time_series_similarity.ClusteringMain</mainClass>-->
-                <!--</manifest>-->
-              <!--</archive>-->
-              <!--<descriptorRefs>-->
-                <!--<descriptorRef>jar-with-dependencies</descriptorRef>-->
-              <!--</descriptorRefs>-->
-            <!--</configuration>-->
-          <!--</execution>-->
-        <!--</executions>-->
-      <!--</plugin>-->
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
