@@ -20,6 +20,10 @@ import org.codehaus.jackson.map.ObjectMapper
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
+/**
+  * Framework class for clustering changes
+  * @param spark
+  */
 class Clustering(spark:SparkSession) extends Serializable{
 
   var filter: Dataset[ChangeRecord] => Dataset[ChangeRecord] = null

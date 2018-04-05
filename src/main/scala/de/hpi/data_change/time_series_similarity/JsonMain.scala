@@ -4,6 +4,10 @@ import java.sql.{Connection, DriverManager, ResultSet, Statement}
 
 import org.apache.spark.sql.SparkSession
 
+/**
+  * Main class, however not for the clustering framework as a standalone, but integrated into the DBChex-tool.
+  * Unfamiliar users should use Main instead
+  */
 object JsonMain extends App{
   val isLocal = args.length==3 && args(2) == "-local"
   var sparkBuilder = SparkSession

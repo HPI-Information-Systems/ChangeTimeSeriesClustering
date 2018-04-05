@@ -5,7 +5,6 @@ import java.time.{LocalDateTime, ZoneOffset}
 
 import de.hpi.data_change.time_series_similarity.Clustering
 import de.hpi.data_change.time_series_similarity.data.ChangeRecord
-import de.hpi.data_change.time_series_similarity.serialization.TabluarResultFormatter
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 
 import scala.collection.mutable.ListBuffer
@@ -147,7 +146,6 @@ object InfoboxHeatmapExample extends App with Serializable{
     val results = dataset.groupByKey( cr => cr.entity + "|" + cr.property).mapGroups{case (id,it) => {
       val allVals = it.toList
       (allVals.head.entity,allVals.head.property,allVals.size)}}.collect()
-    println(new TabluarResultFormatter().format(results.sortBy( t => t._1).map( t => List(t))))
     //dataset.take(100).foreach(println(_))
     val props = results.map(t => t._2).toSet.toList.sorted
     val entities = results.map(t=>t._1).toSet.toList.sorted
@@ -199,7 +197,6 @@ object InfoboxHeatmapExample extends App with Serializable{
     val results = dataset.groupByKey( cr => cr.entity + "|" + cr.property).mapGroups{case (id,it) => {
       val allVals = it.toList
       (allVals.head.entity,allVals.head.property,allVals.size)}}.collect()
-    println(new TabluarResultFormatter().format(results.sortBy( t => t._1).map( t => List(t))))
     //dataset.take(100).foreach(println(_))
     val props = results.map(t => t._2).toSet.toList.sorted
     val entities = results.map(t=>t._1).toSet.toList.sorted

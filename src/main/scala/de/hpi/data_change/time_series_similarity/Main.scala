@@ -2,6 +2,11 @@ package de.hpi.data_change.time_series_similarity
 
 import org.apache.spark.sql.SparkSession
 
+/**
+  * Main entry to the clustering framework
+  * First parameter is a .json file containing most user-configurable options
+  * Other User-Defined Options (Grouping and filter on the groups) are defined here
+  */
 object Main extends App with Serializable{
 
   val isLocal = args.length==2 && args(1) == "-local"
