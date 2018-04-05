@@ -7,7 +7,7 @@ class GroupFromDatabaseReadTest extends FlatSpec {
   val spark = SparkSession.builder().appName("Unit Test").master("local[2]").getOrCreate()
 
   "Query to database" should "return the correct results" in {
-    val clusterer = new Clustering("","",spark)
+    val clusterer = new Clustering(spark)
     //3 keys:
     var querystring = "select * from test_3_keys"
     //database config
@@ -27,7 +27,7 @@ class GroupFromDatabaseReadTest extends FlatSpec {
   def toRegex(s: String): String = s.replace("|","\\|")
 
   "Grouping by arbitrary number of keys" should "interpret the first n-1 attributes as keys, the last one as timestamp" in {
-    val clusterer = new Clustering("","",spark)
+    val clusterer = new Clustering(spark)
     //3 keys:
     var querystring = "select * from test_3_keys"
     //database config

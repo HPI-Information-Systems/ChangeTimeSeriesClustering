@@ -1,4 +1,4 @@
-package de.hpi.data_change.time_series_similarity.dba;
+package de.hpi.data_change.time_series_similarity.dba.java;
 
 /*******************************************************************************
  * Copyright (C) 2013 Francois PETITJEAN
@@ -17,7 +17,6 @@ package de.hpi.data_change.time_series_similarity.dba;
  ******************************************************************************/
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**

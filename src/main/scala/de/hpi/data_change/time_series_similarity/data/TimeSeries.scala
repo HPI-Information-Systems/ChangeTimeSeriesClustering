@@ -1,10 +1,8 @@
 package de.hpi.data_change.time_series_similarity.data
 
-import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUnit:String, begin:java.sql.Timestamp) {
 
@@ -82,7 +80,7 @@ case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUni
   def featureExtraction(method:String):Array[Double] = {
     method.toLowerCase.trim match {
       case "raw" => yValues.toArray
-      case "statistics" => Array(yValues.min,yValues.max,yValues.sum/yValues.size)
+      case "statistics" => Array(yValues.min,yValues.max,yValues.sum,yValues.size)
       case _ => throw new AssertionError("unknown time series feature extraction method")
     }
   }

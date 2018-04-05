@@ -2,9 +2,9 @@ package de.hpi.data_change.time_series_similarity
 
 import org.apache.spark.sql.SparkSession
 
-object Main extends App{
+object Main extends App with Serializable{
 
-  val isLocal = args.length==4 && args(3) == "-local"
+  val isLocal = args.length==2 && args(1) == "-local"
   var sparkBuilder = SparkSession
     .builder()
     .appName("Clustering")
@@ -12,8 +12,9 @@ object Main extends App{
     sparkBuilder = sparkBuilder.master("local[2]")
   }
   val spark = sparkBuilder.getOrCreate()
-  val clusterer = new Clustering(args(1),args(2),spark)
-  clusterer.setFileAsDataSource(args(0))
+  val clusterer = new Clustering(spark)
+  clusterer.setParams(args(0))
+  clusterer.grouper = (cr => Seq(cr.entity))
+  clusterer.groupFilter = (ds => ds.filter(t => t._2.size>50))
   clusterer.clustering()
-
 }

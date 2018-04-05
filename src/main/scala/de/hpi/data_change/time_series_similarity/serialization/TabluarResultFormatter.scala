@@ -1,7 +1,4 @@
-package de.hpi.data_change.time_series_similarity.visualization
-
-import java.io.{File, FileWriter, PrintWriter}
-import org.apache.spark.sql.SparkSession
+package de.hpi.data_change.time_series_similarity.serialization
 
 class TabluarResultFormatter() extends Serializable{
 

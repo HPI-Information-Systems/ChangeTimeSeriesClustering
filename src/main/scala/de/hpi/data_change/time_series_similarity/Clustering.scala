@@ -1,31 +1,30 @@
 package de.hpi.data_change.time_series_similarity
 
-import java.io.{File, PrintWriter}
-import java.sql.{DriverManager, Time, Timestamp}
-import java.time.{LocalDateTime, ZoneOffset}
+import java.io.File
+import java.sql.Timestamp
+import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.Properties
 
 import de.hpi.data_change.time_series_similarity.data.{ChangeRecord, TimeSeries}
-import de.hpi.data_change.time_series_similarity.visualization.CSVSerializer
+import de.hpi.data_change.time_series_similarity.dba.DBAKMeans
+import de.hpi.data_change.time_series_similarity.serialization.CSVSerializer
 import org.apache.spark.ml.clustering.KMeans
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
-import org.apache.spark.ml.clustering.BisectingKMeans
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.apache.spark.sql._
-import org.codehaus.jackson.JsonNode
-import org.json4s.JsonAST.JObject
-import org.json4s.jackson.Json
-import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.{col, lower}
+import org.apache.spark.sql.types.{DataTypes, StructType}
+import org.codehaus.jackson.map.ObjectMapper
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSession) extends Serializable{
+class Clustering(spark:SparkSession) extends Serializable{
 
   var filter: Dataset[ChangeRecord] => Dataset[ChangeRecord] = null
   var grouper: ChangeRecord => Seq[String] = null
+  var groupFilter: Dataset[(Seq[String],List[ChangeRecord])] => Dataset[(Seq[String],List[ChangeRecord])] = null //g => g._2.size > minGroupSize
 
   def setIndividualFilter(filter: Dataset[ChangeRecord] => Dataset[ChangeRecord]): Unit = this.filter = filter
 
@@ -36,14 +35,17 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   var templatesPath = "/home/leon/Documents/researchProjects/wikidata/data/templates.csv"
   //------------------------------------------- End Parameters relevant for GroundTruth -------------------------------------------
 
+  var writeResults = true
+
   //------------------------------------------- Begin Parameters settable via json config object -------------------------------------------
+  var resultDirectory:String = null
+  var configIdentifier:String = null
   //Parameters are initilaized with default values
   var aggregationGranularity = 7
   var aggregationTimeUnit = "DAYS"
   var transformation:List[String] = List() //empty list: "None"
   var featureExtraction = "raw"
   var clusteringAlg = "KMeans"
-  var distanceMeasure = "Euclidean"
   //clustering features settable via config
   var numClusters = 10
   var numIterations = 100
@@ -58,8 +60,8 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   //------------------------------------------- Begin Database Access parameters -----------------------------------------------------------
   //database config
   var url = "jdbc:postgresql://localhost/changedb"
-  var user = "dummy"
-  var pw = "dummy"
+  var user:String = null
+  var pw:String = null
   var driver = "org.postgresql.Driver"
   //do we use the database or files?
   var useDB = false
@@ -67,13 +69,9 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   var queryIsPrefiltered = false
   //------------------------------------------- End Database Access parameters -----------------------------------------------------------
 
-  //------------------------------------------- Begin Filtering Parameters ---------------------------------------------------------------
-  var minGroupSize = 0
-  //------------------------------------------- End Filtering Parameters -----------------------------------------------------------------
-
-  //------------------------------------------- Begin Dataset Sepcific Parameters --------------------------------------------------------
-  var start:java.sql.Timestamp = java.sql.Timestamp.valueOf("2014-02-21 00:00:00") //2014-02-21_Movies_changes
-  var end:java.sql.Timestamp = java.sql.Timestamp.valueOf("2017-07-15 00:00:00") //2017-07-14
+  //------------------------------------------- Begin Dataset Specific Parameters --------------------------------------------------------
+  var start:java.sql.Timestamp = null
+  var end:java.sql.Timestamp = null
   //------------------------------------------- End Dataset Specific Parameters ----------------------------------------------------------
 
   def setFileAsDataSource(filePath:String): Unit = {
@@ -87,11 +85,15 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     useDB = true
   }
 
-  def setDatabaseAccess(url:String,user:String,pw:String,driver:String) = {
+  def setDatabaseAccess(url:String,user:String,pw:String,driver:String):Unit = {
     this.url =url
     this.user = user
     this.pw = pw
     this.driver = driver
+  }
+
+  def setDatabaseAccess(url:String,driver:String):Unit = {
+    setDatabaseAccess(url,Clustering.STANDARD_USER,Clustering.STANDARD_PW,driver)
   }
 
   def setTimeBorders(start:Timestamp,end:Timestamp): Unit ={
@@ -99,12 +101,36 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     this.end = end
   }
 
-  def setParams(config:JsonNode) = {
+  def setParams(jsonPath:String) = {
+    val config = new ObjectMapper().readTree(new File(jsonPath))
+    //----------begin new
+    if(config.has("start") && config.has("end")) {
+      start = java.sql.Timestamp.valueOf(config.get("start").getTextValue)
+      end = java.sql.Timestamp.valueOf(config.get("end").getTextValue)
+    } else{
+      start = null
+      end = null
+    }
+    configIdentifier = config.get("configIdentifier").getTextValue
+    addGroundTruth = config.get("addGroundTruth").getBooleanValue
+    if(config.has("fileSource")){
+      if(config.has("dbSource"))
+      println("WARN: both file source and database source specified, file source will be used")
+      resultDirectory = config.get("resultDirectory").getTextValue
+      setFileAsDataSource(config.get("fileSource").getTextValue)
+    } else if (config.has("dbSource")){
+      val url = config.get("dbSource").get("url").getTextValue
+      val driver = config.get("dbSource").get("driver").getTextValue
+      setDatabaseAccess(url,driver)
+      val query = config.get("dbSource").get("query").getTextValue
+      setDBQueryAsDataSource(query,true)
+    }
+    //----------end new
     aggregationGranularity = config.get("granularity").getIntValue
     aggregationTimeUnit =config.get("unit").getTextValue
     assert ( ChronoUnit.values().exists(s => s.toString == aggregationTimeUnit))
-    val transformationString = (config.get("transformation").getTextValue) //TODO: expect a list here
-    transformation = List(transformationString)
+    val transformationList = scala.collection.JavaConversions.asScalaIterator(config.get("transformation").getElements).toList //TODO: expect a list here
+    transformation = transformationList.map( n => n.getTextValue)
     featureExtraction = config.get("featureExtraction").getTextValue
     clusteringAlg = config.get("clusteringAlg").getTextValue
     if(clusteringAlg == "KMeans" || clusteringAlg == "DBAKMeans"){
@@ -113,6 +139,8 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       numIterations = config.get(subElementName + " Parameters").get("maxIter").getIntValue
       seed = config.get(subElementName + " Parameters").get("seed").getIntValue
     }
+    println(queryIsPrefiltered)
+    println(useDB)
   }
 
   //local parameters:
@@ -129,6 +157,9 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   implicit def ordered: Ordering[LocalDateTime] = new Ordering[LocalDateTime] {
     def compare(x: LocalDateTime, y: LocalDateTime): Int = x compareTo y
   }
+  implicit def ordered2: Ordering[Timestamp] = new Ordering[Timestamp] {
+    def compare(x: Timestamp, y: Timestamp): Int = x compareTo y
+  }
   import spark.implicits._
 
   def writeToDB(resultDF: DataFrame,centers:Seq[Array[Double]]) = {
@@ -136,8 +167,7 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     val toWrite = resultDF.map(r => {
       val keyArray = r.getAs[Seq[String]](0)
       val cluster = r.getAs[Int]("assignedCluster")
-      //TODO: ground truth?
-      (keyArray.mkString(Clustering.KeySeparator),cluster) //TODO: variable amount of columns?
+      (keyArray.mkString(Clustering.KeySeparator),cluster)
     })
     println("dummy output simulating database write")
     val props = new Properties()
@@ -189,7 +219,9 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     var groupedDataset = dataset.groupByKey(grouper )
     //TODO: first filtering phase:
     var filteredGroups = groupedDataset.mapGroups{case (id,crIterator) => (id,crIterator.toList) }
-    filteredGroups = filteredGroups.filter( g => g._2.size > minGroupSize)// .filter{case (id,list) => list.size >= minGroupSize}
+    if(groupFilter != null) {
+      filteredGroups = groupFilter(filteredGroups) // .filter{case (id,list) => list.size >= minGroupSize}
+    }
     filteredGroups.map{case (id,list) => {
       val entity = list.head.entity
       val timestamps = list.map(cr => cr.timestamp.toLocalDateTime)
@@ -198,7 +230,6 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
   }
 
   def transformArbitraryDatasetToGroup(dataset: DataFrame) = {
-    println(dataset == null)
     dataset.map(r =>{
       val keys = r.toSeq.slice(0,r.size-1).map( e => e.toString)
       (keys,r.getAs[java.sql.Timestamp](r.size-1).toLocalDateTime)
@@ -216,10 +247,14 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     if(useDB){
       if(queryIsPrefiltered){
         var dataset = getArbitraryQueryResult(url,querystring)
+        println(dataset.count())
         filteredGroups = transformArbitraryDatasetToGroup(dataset)
+        println(filteredGroups.count())
       } else {
         var dataset = getChangeRecordSetFromDB()
+        println(dataset.count())
         filteredGroups = getFilteredGroups(dataset)
+        println(filteredGroups.count())
       }
     } else{
       var dataset = getChangeRecordDataSet(filePath)
@@ -227,9 +262,17 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
       if(filter != null) {
         dataset = filter(dataset)
       }
+      val distinctEntities = dataset.map(r => r.entity).distinct().count()
+      println("Number of distinct entities: " +distinctEntities)
       filteredGroups = getFilteredGroups(dataset)
+      println("Number of filtered Groups: " + filteredGroups.count())
     }
     //create time series:
+    if(end == null || start == null){
+      val startEnd = filteredGroups.map( t => (Timestamp.valueOf(t._2.min),Timestamp.valueOf(t._2.max))).reduce( (t1,t2) => (List(t1._1,t2._1).min,List(t1._2,t2._2).max))
+      start = startEnd._1
+      end = startEnd._2
+    }
     var timeSeriesDataset = filteredGroups.map { case (id, list) => {
       TimeSeries(id, toTimeSeries(list, aggregationGranularity, start, end), aggregationGranularity, aggregationTimeUnit.toUpperCase, end)
     }}
@@ -238,12 +281,14 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     timeSeriesDataset = timeSeriesDataset.map( ts => ts.transform(transformation))
     //filter transformed time series:
     timeSeriesDataset = timeSeriesDataset.filter(ts => ts.filter())
+    println("Number of filtered Time Series: " + timeSeriesDataset.count())
     //extract features:
     val rdd = timeSeriesDataset.rdd.map(ts => {assert(ts.id !=null);RowFactory.create(ts.id.toArray,Vectors.dense(ts.featureExtraction(featureExtraction)))})
     rdd.cache()
     val fields = Array(DataTypes.createStructField("name",DataTypes.createArrayType(DataTypes.StringType),false),DataTypes.createStructField("features",VectorType,false)) //TODO: how to save this as row/list
     val schema = new StructType(fields)
     val finalDf = spark.createDataFrame(rdd,schema)
+    println("Final DF Size: " + finalDf.count())
     //Clustering:
     var resultDF:Dataset[Row] = null
     var centers:Seq[Array[Double]] = null
@@ -255,9 +300,8 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
         .setSeed(seed)
         .setPredictionCol("assignedCluster")
       val kmeansModel = clusteringAlg.fit(finalDf)
-
       resultDF = kmeansModel.transform(finalDf)
-      kmeansModel.save(resultDirectory + configIdentifier + "/model")
+      //kmeansModel.save(resultDirectory + configIdentifier + "/model")
       centers = kmeansModel.clusterCenters.map( v => v.toArray)
     } else if(clusteringAlg == "DBAKMeans"){
       val (newCenters,newResultDF) = new DBAKMeans(numClusters,numIterations,seed,spark).fit(finalDf)
@@ -266,30 +310,32 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
     } else {
       throw new AssertionError("unknown clustering algorithm")
     }
+    println("Size of result df: " + resultDF.count())
     if(addGroundTruth){
       resultDF = addGroundTruth(resultDF)
     }
-    if(useDB){
-      writeToDB(resultDF,centers)
-      //TODO: add column to database with cluster id
-      //TODO: create database containing the cluster centers
+    if(writeResults) {
+      if (useDB) {
+        writeToDB(resultDF, centers)
+      } else {
+        new CSVSerializer(spark, resultDirectory + configIdentifier, centers, resultDF).serializeToCsv()
+      }
     }
-    new CSVSerializer(spark, resultDirectory + configIdentifier,centers,resultDF).serializeToCsv()
   }
 
   def addGroundTruth(clusteringResult:DataFrame):DataFrame ={
-    val clusterer = new Clustering("","",spark)
     //var templates = clusterer.getArbitraryQueryResult(clusterer.url,"SELECT * FROM templates_infoboxes").as[(String,String)]
+    val actualString = "infobox settlement\n infobox album\n infobox football biography\n infobox musical artist\n infobox film\n infobox person\n infobox single\n infobox company\n infobox actor\n infobox nrhp\n infobox french commune\n infobox book\n infobox television\n infobox military person\n infobox radio station\n infobox university\n infobox television episode\n infobox video game\n infobox officeholder\n infobox indian jurisdiction\n infobox uk place\n infobox school\n infobox road\n infobox writer\n infobox baseball biography\n infobox military unit\n infobox mountain\n infobox military conflict\n infobox german location\n infobox airport\n infobox ice hockey player\n infobox scientist\n infobox football club"
+    val actual = actualString.split("\n").map(s => s.trim).toSet
     var templates = spark.read.csv(templatesPath)
+        .filter( r => actual.contains(r.getString(1)))
     templates = templates.withColumnRenamed(templates.columns(0),"entity")
       .withColumnRenamed(templates.columns(1),"template")
     templates = templates.as("template")
+    println("Templates size: " + templates.count())
     val changerecords = clusteringResult.as("result")
-    val joined = templates.join(changerecords,$"name".apply(0) === $"template.entity")
-    //TODO: anpassen!
-    val actualString = " infobox settlement\n infobox album\n infobox person\n infobox football biography\n infobox musical artist\n infobox film\n infobox single\n infobox company\n infobox french commune\n infobox nrhp\n infobox book\n infobox television\n infobox military person\n infobox video game\n infobox school\n infobox officeholder\n infobox uk place\n infobox baseball biography\n infobox radio station\n infobox road\n infobox television episode\n infobox indian jurisdiction\n infobox writer\n infobox university\n infobox military unit\n infobox german location\n infobox mountain\n infobox military conflict\n infobox scientist\n infobox airport\n infobox ice hockey player\n infobox cvg\n infobox nfl biography\n infobox football club"
-    val actual = actualString.split("\n").map(s => s.trim).toSet
-    println("done")
+    val joined = templates.join(changerecords,lower(col("name").apply(0)) === lower(col("template.entity")))
+    println("After join size: " + joined.count())
     joined.withColumnRenamed("template","trueCluster")
   }
 
@@ -305,4 +351,7 @@ class Clustering(resultDirectory:String, configIdentifier:String, spark:SparkSes
 object Clustering{
   //constants:
   val KeySeparator = "||||"
+
+  val STANDARD_USER = "monetdb"
+  val STANDARD_PW = "monetdb"
 }

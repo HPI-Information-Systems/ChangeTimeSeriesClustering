@@ -2,10 +2,10 @@ package de.hpi.data_change.time_series_similarity.data
 
 import java.sql.Timestamp
 import java.time.LocalDateTime
-import java.time.format.{DateTimeFormatter, DateTimeParseException}
+import java.time.format.DateTimeFormatter
 
 import org.apache.commons.csv.CSVRecord
-import org.apache.spark.sql.{Encoder, Row}
+import org.apache.spark.sql.Row
 
 case class ChangeRecord(val entity:String, val property:String,val value:String,val timestamp:Timestamp) {
 

@@ -5,10 +5,9 @@ import java.time.{LocalDateTime, ZoneOffset}
 
 import de.hpi.data_change.time_series_similarity.Clustering
 import de.hpi.data_change.time_series_similarity.data.ChangeRecord
-import de.hpi.data_change.time_series_similarity.visualization.TabluarResultFormatter
+import de.hpi.data_change.time_series_similarity.serialization.TabluarResultFormatter
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object InfoboxHeatmapExample extends App with Serializable{
@@ -235,6 +234,6 @@ object InfoboxHeatmapExample extends App with Serializable{
   }
 
   def getChangeRecordDataSet(filePath:String): Dataset[ChangeRecord] ={
-    new Clustering("","",spark).getChangeRecordDataSet(filePath)
+    new Clustering(spark).getChangeRecordDataSet(filePath)
   }
 }

@@ -2,8 +2,28 @@
   "schema": {
     "type": "object",
     "title": "Time Series Extraction",
-    "required": ["granularity", "unit","transformation","featureExtraction","clusteringAlg"],
+    "required": [
+      "granularity",
+      "unit",
+      "transformation",
+      "featureExtraction",
+      "clusteringAlg"
+    ],
     "properties": {
+      "dbsource": {
+        "url": {
+          "title": "url",
+          "type": "string"
+        },
+        "driver": {
+          "title": "driver",
+          "type": "string"
+        },
+        "query": {
+          "title": "query",
+          "type": "string"
+        }
+      },
       "granularity": {
         "title": "granularity",
         "type": "number"
@@ -20,29 +40,35 @@
           "Months"
         ]
       },
-      "transformation" : {
+      "transformation": {
         "title": "Time series Transformation",
-        "type":"string",
-        "enum": [
-          "None",
-          "Normalize",
-          "log",
-          "sqrt"
-        ]
+        "type": "array",
+        "items": {
+          "type": "string",
+          "properties": {
+            "enum": [
+              "None",
+              "Normalize",
+              "log",
+              "sqrt"
+            ]
+          }
+        }
       },
-      "featureExtraction:":{
+      "featureExtraction:": {
         "title": "Feature Extraction Method from Time Series",
-        "type":"string",
+        "type": "string",
         "enum": [
           "Raw",
           "Statistics"
         ]
       },
-      "clusteringAlg":{
+      "clusteringAlg": {
         "title": "Clustering Algorithm",
-        "type":"string",
+        "type": "string",
         "enum": [
-          "KMeans"
+          "KMeans",
+          "DBAKMeans"
         ]
       }
     }

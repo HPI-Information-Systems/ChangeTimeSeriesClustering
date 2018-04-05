@@ -1,4 +1,4 @@
-package de.hpi.data_change.time_series_similarity.dba;
+package de.hpi.data_change.time_series_similarity.dba.java;
 
 import java.io.Serializable;
 import java.util.ArrayList;

@@ -1,10 +1,10 @@
-package de.hpi.data_change.time_series_similarity
+package de.hpi.data_change.time_series_similarity.dba
 
-import de.hpi.data_change.time_series_similarity.dba.{DBA, ModifiedDBA}
+import de.hpi.data_change.time_series_similarity.dba.java.ModifiedDBA
 import net.sf.javaml.core.DenseInstance
 import net.sf.javaml.distance.dtw.DTWSimilarity
-import org.apache.spark.sql._
 import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.sql._
 
 
 class DBAKMeans(k: Int, maxIter: Int, seed: Long, spark: SparkSession) extends Serializable {

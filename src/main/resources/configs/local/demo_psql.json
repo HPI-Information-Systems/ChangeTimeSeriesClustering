@@ -1,0 +1,18 @@
+{ "dbSource": {
+    "url": "jdbc:postgresql://localhost/changedb",
+    "driver": "org.postgresql.Driver",
+    "query": "SELECT entity,timestamp FROM wikipedia_infobox_changes LIMIT 100"
+  },
+  "addGroundTruth":false,
+  "configIdentifier":"testDemo",
+  "granularity":60,
+  "unit":"Days",
+  "transformation":[],
+  "featureExtraction": "Raw",
+  "clusteringAlg":"KMeans",
+  "KMeans Parameters":{
+    "k":2,
+    "maxIter":150,
+    "seed":13
+  }
+}

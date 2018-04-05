@@ -1,9 +1,9 @@
-import de.hpi.data_change.time_series_similarity.Clustering
 import de.hpi.data_change.time_series_similarity.data.TimeSeries
-import de.hpi.data_change.time_series_similarity.dba.DBA
+import de.hpi.data_change.time_series_similarity.dba.DBAKMeans
 import net.sf.javaml.core.DenseInstance
 import net.sf.javaml.distance.dtw.DTWSimilarity
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.sql.{Encoder, SparkSession}
 import org.scalatest.FlatSpec
 
 import scala.collection.mutable
@@ -12,6 +12,7 @@ import scala.util.Random
 class DTWDistanceTest extends FlatSpec{
 
   val sim = new DTWSimilarity()
+  val spark = SparkSession.builder().appName("Unit Test").master("local[2]").getOrCreate()
 
   "DTW" should "return the same result a reference implementation" in {
     //TODO: paths incorrect!
@@ -36,7 +37,29 @@ class DTWDistanceTest extends FlatSpec{
     }
   }
 
-  "Modified DBA" should "output the same values as original DBA" in {
+  "Modified DBA" should "correctly classify cosinus vs tangens" in {
+    implicit def changeRecordListEncoder: Encoder[(Seq[String],org.apache.spark.ml.linalg.Vector)] = org.apache.spark.sql.Encoders.kryo[(Seq[String],org.apache.spark.ml.linalg.Vector)]
+
+    val numPoints = 100
+    val random = new Random(13)
+    val numSeqs = 100
+    val cosinusSequences = mutable.ListBuffer[Seq[Double]]()
+    val tanSequences = mutable.ListBuffer[Seq[Double]]()
+    for(i <- 0 until numSeqs){
+      val offset = random.nextDouble()*Math.PI
+      val cosinus = (0 until numPoints).map( i => Math.cos((Math.PI*(i+offset) )/numPoints)).toList
+      cosinusSequences += cosinus
+      val tan = (0 until numPoints).map( i => Math.tan((Math.PI*(i+offset) )/numPoints)).toList
+      tanSequences += tan
+    }
+    val dba = new DBAKMeans(2,50,13,spark)
+    val df = spark.createDataset(cosinusSequences.map( i=> (Seq("cos"),Vectors.dense(i.toArray))) ++ tanSequences.map(i => (Seq("tan"),Vectors.dense(i.toArray))))
+    var finalDF = df.toDF()
+      finalDF = finalDF.withColumnRenamed(finalDF.columns(0),"name")
+      .withColumnRenamed(finalDF.columns(1),"features")
+    val (centers,resultDF) = dba.fit(finalDF)
+    centers.foreach( println(_))
+    resultDF.collect().foreach( r => println(r.getAs[Seq[String]]("name")(0) + "  " + r.getAs[Int]("assignedCluster")))
 
   }
 

@@ -1,22 +1,11 @@
-package de.hpi.data_change.time_series_similarity.visualization
+package de.hpi.data_change.time_series_similarity.serialization
 
 import java.io._
-import scala.util.Try
-import java.sql.Timestamp
 
-import com.google.common.collect.{HashMultiset, Multiset}
 import de.hpi.data_change.time_series_similarity.Clustering
-import de.hpi.data_change.time_series_similarity.data.ChangeRecord
-import org.apache.spark.ml.clustering.KMeansModel
-import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.encoders.RowEncoder
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.{ArrayType, StringType}
-import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 
-import scala.collection.{immutable, mutable}
-import scala.util.Random
+import scala.util.Try
 
 case class CSVSerializer(spark: SparkSession, resultPath: String, clusterCenters:Seq[Array[Double]],clusteringResult:DataFrame) extends Serializable{
 
@@ -79,15 +68,15 @@ case class CSVSerializer(spark: SparkSession, resultPath: String, clusterCenters
 
   def serializeToCsv(): Unit ={
     //members:
-    val header = List("id","assignedCluster","trueCluster") ++ (0 until getFeatures(clusteringResult.head).size).toList.map("val_"+_)
-    val headerAsString = spark.createDataset(List(header.mkString(",")))
-    printLinesToSingleFile(headerAsString.union(clusteringResult.map(toLineString(_))),"/members.csv")
+    //val header = List("id","assignedCluster","trueCluster") ++ (0 until getFeatures(clusteringResult.head).size).toList.map("val_"+_)
+    //val headerAsString = spark.createDataset(List(header.mkString(",")))
+    printLinesToSingleFile(clusteringResult.map(toLineString(_)),"/members.csv")
     //centers:
     val maxCenterLength = clusterCenters.map(_.size).max
-    val centerHeader = (0 until maxCenterLength).toList.map("val_"+_)
-    val centerHeadeAsrString = spark.createDataset(List(centerHeader.mkString(",")))
+    //val centerHeader = (0 until maxCenterLength).toList.map("val_"+_)
+    //val centerHeadeAsrString = spark.createDataset(List(centerHeader.mkString(",")))
     val centersAsString = spark.createDataset(clusterCenters).map(center => toMaxLength(center,maxCenterLength).mkString(","))
-    printLinesToSingleFile(centerHeadeAsrString.union(centersAsString),"/centers.csv")
+    printLinesToSingleFile(centersAsString,"/centers.csv")
     //centers transposed:
     val transposedLines = (0 until clusterCenters.size).flatMap({ cluster =>
       toMaxLength(clusterCenters(cluster),maxCenterLength).zipWithIndex.map{case (y,x) => x + "," + y + "," + cluster }

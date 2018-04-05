@@ -1,4 +1,4 @@
-package de.hpi.data_change.time_series_similarity.dba;
+package de.hpi.data_change.time_series_similarity.dba.java;
 
 public class Pair<K,V> {
 

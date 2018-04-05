@@ -14,13 +14,14 @@ object TopTemplateChangeRecordExtraction extends App with Serializable{
     .appName("Clustering")
     .master("local[2]")
   val spark = sparkBuilder.getOrCreate()
-  import spark.implicits._
   import org.apache.spark.sql.functions.lower
-  val clusterer = new Clustering("","",spark)
+  import spark.implicits._
+  val clusterer = new Clustering(spark)
   val stuff = clusterer.getChangeRecordDataSet(args(0))
   //val templatesRaw = spark.read.csv(args(2)).as[(String,String)]
-  //val templates = templatesRaw
-  //  .withColumnRenamed()
+//  val templates = templatesRaw
+//    .withColumnRenamed(templatesRaw.columns(0),"entity")
+//    .withColumnRenamed(templatesRaw.columns)
   val filtered = individualFilter(stuff)
   filtered.write.csv(args(1))
 
