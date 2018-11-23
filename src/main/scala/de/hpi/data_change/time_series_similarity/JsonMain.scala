@@ -1,15 +1,18 @@
 package de.hpi.data_change.time_series_similarity
 
+import java.io.File
 import java.sql.{Connection, DriverManager, ResultSet, Statement}
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions._
+import org.codehaus.jackson.map.ObjectMapper
 
 /**
   * Main class, however not for the clustering framework as a standalone, but integrated into the DBChex-tool.
   * Unfamiliar users should use Main instead
   */
 object JsonMain extends App{
-  val isLocal = args.length==3 && args(2) == "-local"
+  val isLocal = args.length==2 && args(1) == "-local"
   var sparkBuilder = SparkSession
     .builder()
     .appName("Clustering")
@@ -18,12 +21,12 @@ object JsonMain extends App{
     }
   val spark = sparkBuilder.getOrCreate()
 
-  val id = args(0)
-  val jsonPath = args(1)
-  val exploration = new Clustering(spark)
-  exploration.setParams(jsonPath)
-  exploration.writeResults = false
-  //TODO: change exploration.setDBQueryAsDataSource(config.get("query").getTextValue,false)
-  exploration.setGrouper(cr => Seq(cr.entity,cr.property))
+
+
+
+
+  val jsonPath = args(0)
+  val configAsJsonString = new ObjectMapper().readTree(new File(jsonPath)).toString
+  val exploration = new Clustering(spark,configAsJsonString)
   exploration.clustering()
 }

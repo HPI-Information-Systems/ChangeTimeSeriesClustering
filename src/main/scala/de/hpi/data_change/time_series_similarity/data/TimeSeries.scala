@@ -28,7 +28,7 @@ case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUni
     }
   }
 
-  def pointDist(d: Double, d1: Double) = Math.pow(d-d1,2) //TODO - wirklich quadrieren?
+  def pointDist(d: Double, d1: Double) = Math.pow(d-d1,2)
 
   def dtwDistance(other: TimeSeries): (Double,(Int,Int)) ={
     val A = yValues
@@ -84,7 +84,5 @@ case class TimeSeries(id:Seq[String], yValues:Seq[Double], step:Integer, stepUni
       case _ => throw new AssertionError("unknown time series feature extraction method")
     }
   }
-
-  def filter(): Boolean = {true}
 
 }
