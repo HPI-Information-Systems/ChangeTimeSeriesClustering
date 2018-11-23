@@ -1,0 +1,17 @@
+{ "url": "jdbc:postgresql://localhost/changedb",
+  "user": "dummy",
+  "pw": "dummy",
+  "driver": "org.postgresql.Driver",
+  "query": "select entity,property,timestamp from settlements LIMIT 200",
+  "configIdentifier": "ID_test",
+  "granularity": 30,
+  "transformations": ["none"],
+  "unit": "DAYS",
+  "featureExtraction": "raw",
+  "clusteringAlgorithm": {
+    "name": "KMeans",
+    "k": 2,
+    "maxIter": 100,
+    "seed": 13
+  }
+}
