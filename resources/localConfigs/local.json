@@ -17,7 +17,7 @@
     "maxIter" : 100,
     "seed" : 13
   },
-  "configIdentifier" : "id_59419210_bc12_4987_8d8b_0d7caa32adff",
+  "configIdentifier" : "asd123123154",
   "url" : "jdbc:postgresql://localhost:5432/changedb",
   "driver" : "org.postgresql.Driver"
 }

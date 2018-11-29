@@ -5,6 +5,8 @@ import java.util.Properties
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.codehaus.jackson.JsonNode
+import org.json4s.JsonAST.{JArray, JDouble, JObject}
+import org.json4s.jackson.JsonMethods._
 
 case class DBAccess(spark:SparkSession,config:Config) extends Serializable {
 
@@ -13,14 +15,21 @@ case class DBAccess(spark:SparkSession,config:Config) extends Serializable {
     def writeDFToDB(df: DataFrame,tableName:String) = {
         val props = new Properties()
         props.setProperty("user",config.user)
-        props.setProperty("password",config.password)
+        props.setProperty("password",config.pw)
         props.setProperty("driver",config.driver)
         df.write.jdbc(config.url,tableName,props)
     }
 
     def writeToDB(resultDF: DataFrame, centers:Seq[Array[Double]], inputSchema:Seq[String]) = {
         //cluster centers
-        val centerDF = spark.createDataset(centers.zipWithIndex)
+        var centerDF = spark.createDataset(centers
+            .map(arr => {
+                val centersAsJson = arr.map(d => JDouble(d)).toList
+                val json = JObject("centers" -> JArray(centersAsJson))
+                compact(render(json))
+            }).zipWithIndex)
+        centerDF.withColumnRenamed(centerDF.columns(0),"center")
+            .withColumnRenamed(centerDF.columns(1),"cluster")
         //drop the time series values:
         val df1 = resultDF.toDF()
             .withColumn("rowNr",monotonically_increasing_id())
@@ -62,7 +71,7 @@ case class DBAccess(spark:SparkSession,config:Config) extends Serializable {
             //option("continueBatchOnError","true").
             option("useSSL", "false").
             option("user", config.user).
-            option("password", config.password).
+            option("password", config.pw).
             option("dbtable","(" + query + ") as queryresult").
             load()
     }

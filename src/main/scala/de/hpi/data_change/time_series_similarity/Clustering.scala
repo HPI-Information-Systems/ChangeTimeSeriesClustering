@@ -25,9 +25,8 @@ import scala.util.Random
   * Framework class for clustering changes
   * @param spark
   */
-class Clustering(spark:SparkSession,jsonConfig:String) extends Serializable {
+class Clustering(spark:SparkSession,config:Config) extends Serializable {
 
-  val config = new Config(jsonConfig)
   val dbAccess = DBAccess(spark,config)
 
   //------------------------------------------- Begin Dataset Specific Parameters --------------------------------------------------------
@@ -92,8 +91,8 @@ class Clustering(spark:SparkSession,jsonConfig:String) extends Serializable {
       end = startEnd._2
     }
     println("Successfully Calculated min/max Timestamp")
-    val timeUnit = config.timeUnit
-    val aggregationGranularity = config.aggregationGranularity
+    val timeUnit = config.unit
+    val aggregationGranularity = config.granularity
     var timeSeriesDataset = filteredGroups.map { case (id, list) => {
       TimeSeries(id, toTimeSeries(list, aggregationGranularity,timeUnit, start, end), aggregationGranularity, timeUnit, end)
     }}
@@ -115,10 +114,10 @@ class Clustering(spark:SparkSession,jsonConfig:String) extends Serializable {
     var resultDF:Dataset[Row] = null
     var centers:Seq[Array[Double]] = null
 
-    val clusteringAlg = config.clusteringAlgorithm
-    val numClusters = config.k
-    val numIterations = config.maxIter
-    val seed = config.seed
+    val clusteringAlg = config.clusteringAlgorithm.name
+    val numClusters = config.clusteringAlgorithm.k
+    val numIterations = config.clusteringAlgorithm.maxIter
+    val seed = config.clusteringAlgorithm.seed
 
     if(clusteringAlg == "KMeans") {
       val clusteringAlg = new KMeans()
