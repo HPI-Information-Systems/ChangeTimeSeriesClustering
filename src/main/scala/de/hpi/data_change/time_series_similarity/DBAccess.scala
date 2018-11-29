@@ -28,8 +28,8 @@ case class DBAccess(spark:SparkSession,config:Config) extends Serializable {
                 val json = JObject("centers" -> JArray(centersAsJson))
                 compact(render(json))
             }).zipWithIndex)
-        centerDF.withColumnRenamed(centerDF.columns(0),"center")
-            .withColumnRenamed(centerDF.columns(1),"cluster")
+        centerDF = centerDF.withColumnRenamed(centerDF.columns(0),"center")
+            .withColumnRenamed(centerDF.columns(1),"cluster").as[(String,Int)]
         //drop the time series values:
         val df1 = resultDF.toDF()
             .withColumn("rowNr",monotonically_increasing_id())
