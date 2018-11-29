@@ -36,18 +36,13 @@ class Clustering(spark:SparkSession,jsonConfig:String) extends Serializable {
   //------------------------------------------- End Dataset Specific Parameters ----------------------------------------------------------
 
   //local parameters:
-//  implicit def localDateTimeEncoder: Encoder[LocalDateTime] = org.apache.spark.sql.Encoders.kryo[LocalDateTime]
-//  implicit def localDateTimePairEncoder: Encoder[(LocalDateTime,LocalDateTime)] = org.apache.spark.sql.Encoders.kryo[(LocalDateTime,LocalDateTime)]
-//  implicit def localDateTimeTupleEncoder: Encoder[(String,LocalDateTime)] = org.apache.spark.sql.Encoders.kryo[(String,LocalDateTime)]
-//  implicit def localDateTimeListTupleEncoder: Encoder[(String,List[LocalDateTime])] = org.apache.spark.sql.Encoders.kryo[(String,List[LocalDateTime])]
-  implicit def localDateTimeListTupleEncoderWithStringList: Encoder[(Seq[String],List[LocalDateTime])] = org.apache.spark.sql.Encoders.kryo[(Seq[String],List[LocalDateTime])]
-//  implicit def localDateTimeListTupleEncoderWithStringListAndAssignedCluster: Encoder[(Seq[String],List[LocalDateTime],Int)] = org.apache.spark.sql.Encoders.kryo[(Seq[String],List[LocalDateTime],Int)]
+  implicit def enc1: Encoder[(Seq[String],List[LocalDateTime])] = org.apache.spark.sql.Encoders.kryo[(Seq[String],List[LocalDateTime])]
 //
-  implicit def localDateTimeListTupleEncoderWithStringList_2: Encoder[(Seq[String],LocalDateTime)] = org.apache.spark.sql.Encoders.kryo[(Seq[String],LocalDateTime)]
-  implicit def ordered: Ordering[LocalDateTime] = new Ordering[LocalDateTime] {
+  implicit def enc2: Encoder[(Seq[String],LocalDateTime)] = org.apache.spark.sql.Encoders.kryo[(Seq[String],LocalDateTime)]
+  implicit def localDateTimeOrdering: Ordering[LocalDateTime] = new Ordering[LocalDateTime] {
     def compare(x: LocalDateTime, y: LocalDateTime): Int = x compareTo y
   }
-  implicit def ordered2: Ordering[Timestamp] = new Ordering[Timestamp] {
+  implicit def timestampOrdering: Ordering[Timestamp] = new Ordering[Timestamp] {
     def compare(x: Timestamp, y: Timestamp): Int = x compareTo y
   }
   import spark.implicits._
@@ -147,8 +142,4 @@ class Clustering(spark:SparkSession,jsonConfig:String) extends Serializable {
     dbAccess.writeToDB(resultDF, centers,originalSchema)
   }
 
-}
-object Clustering{
-  //constants:
-  val KeySeparator = ";,;,;,"
 }

@@ -12,21 +12,18 @@ import org.codehaus.jackson.map.ObjectMapper
   * Unfamiliar users should use Main instead
   */
 object JsonMain extends App{
-  val isLocal = args.length==2 && args(1) == "-local"
+  val jsonPath = args(0)
+  val configAsJsonString = new ObjectMapper().readTree(new File(jsonPath)).toString
+
+  val config = new Config(configAsJsonString)
   var sparkBuilder = SparkSession
     .builder()
     .appName("Clustering")
-    if(isLocal) {
+    if(config.isLocal) {
       sparkBuilder = sparkBuilder.master("local[2]")
     }
   val spark = sparkBuilder.getOrCreate()
 
-
-
-
-
-  val jsonPath = args(0)
-  val configAsJsonString = new ObjectMapper().readTree(new File(jsonPath)).toString
   val exploration = new Clustering(spark,configAsJsonString)
   exploration.clustering()
 }

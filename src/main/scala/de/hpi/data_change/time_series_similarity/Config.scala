@@ -21,6 +21,7 @@ case class Config(jsonString:String) extends Serializable {
     private val K = "k"
     private val MAXITER = "maxIter"
     private val SEED = "seed"
+    private val LOCAL = "local"
 
     //TODO: fix this check!
     //assert ( ChronoUnit.values().exists(s => s.toString == config.get(AGGREGATION_TIME_UNIT).getTextValue))
@@ -37,7 +38,7 @@ case class Config(jsonString:String) extends Serializable {
     val k = clusteringAlgObject.get(K).getIntValue
     val maxIter = clusteringAlgObject.get(MAXITER).getIntValue
     val seed = clusteringAlgObject.get(SEED).getIntValue
-
+    val isLocal = if(config.has(LOCAL)) config.get(LOCAL).getBooleanValue else false
 
     val transformation = scala.collection.JavaConversions.asScalaIterator(config.get(TRANSFORMATION).getElements).toList //TODO: expect a list here
         .map( n => n.getTextValue)
