@@ -1,0 +1,23 @@
+{
+  "host" : "localhost",
+  "port" : 5432,
+  "databaseName" : "changedb",
+  "user" : "postgres",
+  "pw" : "postgres",
+  "dbms" : "postgresql",
+  "local" : true,
+  "query" : "select entity,property,timestamp from settlements LIMIT 200",
+  "granularity" : 30,
+  "transformations" : [ "none" ],
+  "unit" : "DAYS",
+  "featureExtraction" : "raw",
+  "clusteringAlgorithm" : {
+    "name" : "KMeans",
+    "k" : 2,
+    "maxIter" : 100,
+    "seed" : 13
+  },
+  "configIdentifier" : "id_1",
+  "url" : "jdbc:postgresql://localhost:5432/changedb",
+  "driver" : "org.postgresql.Driver"
+}
