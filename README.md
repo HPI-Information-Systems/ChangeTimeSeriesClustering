@@ -14,12 +14,6 @@ The framework consists of the following steps:
   
 
 ### Building and Execution
-The library dependency javaml and monetdb are required. Since the reuired versions are not present in a central maven repository they are included in [/lib](/lib) and need to be added to a local maven repository. Also see the [Readme](/lib/Readme.txt) in the lib directory.
-The library dependencies can be added by running:
-
-* mvn install:install-file -Dfile=javaml-0.1.5.jar -DgroupId=localJavaML -DartifactId=localJavaML -Dversion=0.1.5 -Dpackaging=jar
-* mvn install:install-file -Dfile=javaml-0.1.5.jar -DgroupId=monetdb -DartifactId=localMonetDB -Dversion=2.27 -Dpackaging=jar
-
 
 For a quick start call the [Main-Class](/src/main/scala/de/hpi/data_change/time_series_similarity/Main.scala) with the arguments:
 

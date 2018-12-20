@@ -28,6 +28,10 @@
       <id>clojars.org</id>
       <url>https://repo.clojars.org</url>
     </repository>
+    <repository>
+      <id>pl.edu.icm</id>
+      <url>http://maven.icm.edu.pl/artifactory/repo/</url>
+    </repository>
   </repositories>
 
   <dependencies>
@@ -77,11 +81,11 @@
       <version>23.4-jre</version>
     </dependency>
 
-    <dependency>
-      <groupId>localJavaML</groupId>
-      <artifactId>localJavaML</artifactId>
-      <version>0.1.5</version>
-    </dependency>
+    <!--<dependency>-->
+      <!--<groupId>localJavaML</groupId>-->
+      <!--<artifactId>localJavaML</artifactId>-->
+      <!--<version>0.1.5</version>-->
+    <!--</dependency>-->
 
     <!--<dependency>-->
       <!--<groupId>monetdb</groupId>-->
@@ -95,6 +99,14 @@
       <artifactId>monetdb-jdbc</artifactId>
       <version>2.28</version>
     </dependency>
+
+    <!-- https://mvnrepository.com/artifact/net.sourceforge/javaml -->
+    <dependency>
+      <groupId>net.sourceforge</groupId>
+      <artifactId>javaml</artifactId>
+      <version>0.1.5</version>
+    </dependency>
+
 
 
   </dependencies>
