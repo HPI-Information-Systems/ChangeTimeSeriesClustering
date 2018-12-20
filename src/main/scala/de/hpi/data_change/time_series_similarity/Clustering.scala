@@ -139,6 +139,7 @@ class Clustering(spark:SparkSession,config:Config) extends Serializable {
     }
     println("Size of result df: " + resultDF.count())
     dbAccess.writeToDB(resultDF, centers,originalSchema)
+    spark.stop()
   }
 
 }
